@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # React/Vite Web Application
+  webapp:
+    build:
+      context: ./project-management
+      dockerfile: Dockerfile
+    container_name: vulnapp-webapp
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - vulnapp-network
+    environment:
+      - NODE_ENV=production
+
+  # Nginx Proxy Manager
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"      # HTTP
+      - "443:443"    # HTTPS
+      - "81:81"      # Admin UI
+    volumes:
+      - npm-data:/data
+      - npm-letsencrypt:/etc/letsencrypt
+    networks:
+      - vulnapp-network
+    environment:
+      DB_SQLITE_FILE: "/data/database.sqlite"
+
+  # Supabase Services (will be managed by supabase CLI)
+  # Note: Supabase CLI creates its own containers, we'll connect them via network
+
+  # Vulnerable WordPress for CVE Exploitation (DevSecOps Assignment)
+  wordpress:
+    image: wordpress:5.4.2-php7.4-apache
+    container_name: vulnerable-wordpress
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      - vulnapp-network
+    environment:
+      WORDPRESS_DB_HOST: wordpress-db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: vulnerable_wp_pass
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: 'true'
+    volumes:
+      - wordpress-data:/var/www/html
+      - ./wordpress/plugins:/var/www/html/wp-content/plugins-custom
+    depends_on:
+      - wordpress-db
+
+  # MySQL Database for WordPress
+  wordpress-db:
+    image: mysql:5.7
+    container_name: wordpress-mysql
+    restart: unless-stopped
+    networks:
+      - vulnapp-network
+    environment:
+      MYSQL_ROOT_PASSWORD: root_vulnerable_pass
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: vulnerable_wp_pass
+    volumes:
+      - wordpress-db-data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+
+networks:
+  vulnapp-network:
+    name: vulnapp-network
+    driver: bridge
+
+volumes:
+  npm-data:
+    name: npm-data
+  npm-letsencrypt:
+    name: npm-letsencrypt
+  wordpress-data:
+    name: wordpress-data
+  wordpress-db-data:
+    name: wordpress-db-data

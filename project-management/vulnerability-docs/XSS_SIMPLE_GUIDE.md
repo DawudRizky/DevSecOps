@@ -1,0 +1,29 @@
+# 🚨 XSS Vulnerability - Chat Component
+
+## Vulnerability
+**Stored XSS** di Chat karena `innerHTML` tanpa sanitasi
+
+## Lokasi
+- **Line 21**: `contentRef.current.innerHTML = content;`
+- **Line 107**: `content: newMessage.trim()` (tidak disanitasi)
+
+## Exploit
+Kirim pesan ini di chat:
+```html
+<img src=x onerror=alert(document.cookie)>
+```
+
+## Impact
+- Steal cookies (termasuk plaintext password!)
+- Session hijacking
+- Execute arbitrary JavaScript
+
+## Patch (Simple)
+Ganti MessageContent component dengan:
+```tsx
+const MessageContent = ({ content }: { content: string }) => {
+  return <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{content}</div>;
+};
+```
+
+React otomatis escape HTML = No XSS!

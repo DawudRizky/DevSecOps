@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-10-15T09:47:24.261Z",
+  "clientIP": "::1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+  "referer": "http://localhost:5173/",
+  "data": {
+    "type": "network_reconnaissance",
+    "discoveredEndpoint": "http://localhost:5173/api/test",
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "cache-control": "no-cache",
+      "connection": "keep-alive",
+      "content-length": "702",
+      "content-type": "text/html",
+      "date": "Wed, 15 Oct 2025 09:47:24 GMT",
+      "etag": "W/\"2be-07gjMHkOANQFfvKZsJE0NsriYbE\"",
+      "keep-alive": "timeout=5"
+    }
+  },
+  "headers": {
+    "host": "localhost:8888",
+    "connection": "keep-alive",
+    "content-length": "360",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+    "sec-ch-ua": "\"Google Chrome\";v=\"141\", \"Not?A_Brand\";v=\"8\", \"Chromium\";v=\"141\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?0",
+    "accept": "*/*",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-GB,en-US;q=0.9,en;q=0.8,id;q=0.7"
+  }
+}

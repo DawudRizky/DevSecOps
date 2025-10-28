@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨 Payload Collection - Security Research</title>
+    <style>
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #0d1117;
+            color: #f0f6fc;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #21262d;
+            margin-bottom: 30px;
+        }
+        .warning {
+            background: #da3633;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px solid #f85149;
+        }
+        .category {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            margin: 20px 0;
+            padding: 20px;
+        }
+        .category h3 {
+            color: #58a6ff;
+            border-bottom: 1px solid #21262d;
+            padding-bottom: 10px;
+        }
+        .payload-item {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            margin: 10px 0;
+            padding: 15px;
+            transition: all 0.2s;
+        }
+        .payload-item:hover {
+            border-color: #58a6ff;
+            background: #0d419d15;
+        }
+        .payload-name {
+            color: #f85149;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .payload-desc {
+            color: #8b949e;
+            margin: 5px 0;
+        }
+        .payload-tech {
+            background: #238636;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            display: inline-block;
+            margin: 2px;
+        }
+        .danger-level {
+            float: right;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .critical { background: #da3633; color: white; }
+        .high { background: #fb8500; color: white; }
+        .medium { background: #f9c74f; color: black; }
+        .usage {
+            background: #0d419d;
+            border: 1px solid #1f6feb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .usage h3 {
+            color: #79c0ff;
+        }
+        code {
+            background: #21262d;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #f0f6fc;
+        }
+        .footer {
+            text-align: center;
+            border-top: 2px solid #21262d;
+            padding-top: 20px;
+            margin-top: 40px;
+            color: #8b949e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Payload Collection</h1>
+            <p>Security Research & Vulnerability Testing</p>
+        </div>
+
+        <div class="warning">
+            <h3>⚠️ CRITICAL WARNING</h3>
+            <p><strong>These files contain ACTUAL MALICIOUS CODE!</strong></p>
+            <p>Use only in isolated environments for security research. Unauthorized use is illegal.</p>
+        </div>
+
+        <div class="category">
+            <h3>🌐 JavaScript Payloads</h3>
+            
+            <div class="payload-item">
+                <div class="payload-name">malicious_payload.js <span class="danger-level critical">CRITICAL</span></div>
+                <div class="payload-desc">Advanced client-side exploitation with data exfiltration, network reconnaissance, and persistent backdoor creation</div>
+                <span class="payload-tech">XSS</span>
+                <span class="payload-tech">Data Theft</span>
+                <span class="payload-tech">Persistence</span>
+                <span class="payload-tech">DOM Manipulation</span>
+            </div>
+
+            <div class="payload-item">
+                <div class="payload-name">backdoor_access.js <span class="danger-level critical">CRITICAL</span></div>
+                <div class="payload-desc">Server/Database access payload with credential harvesting and admin panel exploitation</div>
+                <span class="payload-tech">Database Access</span>
+                <span class="payload-tech">Privilege Escalation</span>
+                <span class="payload-tech">Admin Panel</span>
+            </div>
+
+            <div class="payload-item">
+                <div class="payload-name">reverse_shell.js <span class="danger-level high">HIGH</span></div>
+                <div class="payload-desc">Basic reverse shell simulation with system information gathering and session theft</div>
+                <span class="payload-tech">Reverse Shell</span>
+                <span class="payload-tech">Session Hijacking</span>
+                <span class="payload-tech">Reconnaissance</span>
+            </div>
+        </div>
+
+        <div class="category">
+            <h3>🐍 Python Payloads</h3>
+            
+            <div class="payload-item">
+                <div class="payload-name">server_penetration.py <span class="danger-level critical">CRITICAL</span></div>
+                <div class="payload-desc">Advanced server penetration with database exploitation and file system access</div>
+                <span class="payload-tech">Server Compromise</span>
+                <span class="payload-tech">Database Exploitation</span>
+                <span class="payload-tech">File System Access</span>
+            </div>
+
+            <div class="payload-item">
+                <div class="payload-name">reverse_shell.py <span class="danger-level high">HIGH</span></div>
+                <div class="payload-desc">Python-based reverse shell with command execution and data exfiltration</div>
+                <span class="payload-tech">Command Execution</span>
+                <span class="payload-tech">System Control</span>
+                <span class="payload-tech">Data Exfiltration</span>
+            </div>
+        </div>
+
+        <div class="category">
+            <h3>⚡ Shell Scripts</h3>
+            
+            <div class="payload-item">
+                <div class="payload-name">advanced_backdoor.sh <span class="danger-level critical">CRITICAL</span></div>
+                <div class="payload-desc">Advanced backdoor installation with SSH key injection and service persistence</div>
+                <span class="payload-tech">SSH Backdoor</span>
+                <span class="payload-tech">Service Persistence</span>
+                <span class="payload-tech">Log Cleaning</span>
+            </div>
+
+            <div class="payload-item">
+                <div class="payload-name">reverse_shell.sh <span class="danger-level high">HIGH</span></div>
+                <div class="payload-desc">Bash reverse shell with multiple connection techniques and persistence mechanisms</div>
+                <span class="payload-tech">Multiple Shells</span>
+                <span class="payload-tech">Cron Persistence</span>
+                <span class="payload-tech">Network Tunneling</span>
+            </div>
+        </div>
+
+        <div class="category">
+            <h3>📄 HTML/XSS Payloads</h3>
+            
+            <div class="payload-item">
+                <div class="payload-name">innocent_document.html <span class="danger-level critical">CRITICAL</span></div>
+                <div class="payload-desc">HTML document with embedded JavaScript for XSS attacks and form data interception</div>
+                <span class="payload-tech">Cross-Site Scripting</span>
+                <span class="payload-tech">Form Hijacking</span>
+                <span class="payload-tech">Persistent XSS</span>
+            </div>
+        </div>
+
+        <div class="usage">
+            <h3>🎯 How to Use</h3>
+            <ol>
+                <li><strong>Start Listener:</strong> Run <code>start_listener.bat</code> to capture data</li>
+                <li><strong>Upload Payload:</strong> Use the vulnerable file upload feature</li>
+                <li><strong>Auto-Execution:</strong> Files execute automatically during "security scanning"</li>
+                <li><strong>Monitor Results:</strong> Check browser console and listener output</li>
+                <li><strong>View Captured Data:</strong> Check <code>listener/captured_data/</code> folder</li>
+            </ol>
+        </div>
+
+        <div class="usage">
+            <h3>📡 Listener Endpoints</h3>
+            <ul>
+                <li><strong>Data Collection:</strong> <code>http://localhost:3001/collect</code></li>
+                <li><strong>Backdoor Access:</strong> <code>http://localhost:3001/backdoor/:action</code></li>
+                <li><strong>Status Check:</strong> <code>http://localhost:3001/status</code></li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>🔬 Security Research Tools - Use Responsibly</p>
+            <p>For educational purposes in controlled environments only</p>
+        </div>
+    </div>
+</body>
+</html>

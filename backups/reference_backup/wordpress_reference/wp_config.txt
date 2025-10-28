@@ -1,0 +1,11 @@
+WordPress Installation Info
+Backup Date: Mon Oct 28 07:07:26 UTC 2025
+
+WordPress Version:
+$wp_version = '5.4.2';
+
+PHP Version: 7.4.x
+Database: MySQL 5.7
+
+Note: This is a reference file showing the format.
+Actual backups contain real version information from the running WordPress instance.

