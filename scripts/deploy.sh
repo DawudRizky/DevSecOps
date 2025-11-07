@@ -57,11 +57,16 @@ print_message "✅ Supabase containers connected" "$GREEN"
 print_message "\n🏗️  Building and starting web app..." "$BLUE"
 docker-compose up -d --build
 
-# Step 7: Wait for services to be ready
+# Step 7: Auto-install WordPress
+print_message "\n🔧 Auto-installing WordPress with vulnerable plugins..." "$BLUE"
+SCRIPT_DIR="$(dirname "$0")"
+bash "$SCRIPT_DIR/../wordpress/auto-install-wp.sh"
+
+# Step 8: Wait for services to be ready
 print_message "\n⏳ Waiting for services to be ready..." "$BLUE"
 sleep 5
 
-# Step 8: Restore configurations if requested
+# Step 9: Restore configurations if requested
 if [ "$RESTORE_CONFIG" = true ]; then
     print_message "\n🔄 Restoring saved configurations..." "$BLUE"
     SCRIPT_DIR="$(dirname "$0")"
@@ -75,7 +80,7 @@ if [ "$RESTORE_CONFIG" = true ]; then
     fi
 fi
 
-# Step 9: Display service information
+# Step 10: Display service information
 print_message "\n✅ Deployment complete!" "$GREEN"
 
 if [ "$RESTORE_CONFIG" = true ]; then

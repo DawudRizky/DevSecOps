@@ -12,6 +12,8 @@ services:
       - "3000:80"
     networks:
       - vulnapp-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - NODE_ENV=production
 
@@ -37,7 +39,9 @@ services:
 
   # Vulnerable WordPress for CVE Exploitation (DevSecOps Assignment)
   wordpress:
-    image: wordpress:5.4.2-php7.4-apache
+    build:
+      context: ./wordpress
+      dockerfile: Dockerfile
     container_name: vulnerable-wordpress
     restart: unless-stopped
     ports:
@@ -52,7 +56,8 @@ services:
       WORDPRESS_DEBUG: 'true'
     volumes:
       - wordpress-data:/var/www/html
-      - ./wordpress/plugins:/var/www/html/wp-content/plugins-custom
+      - ./wordpress/vulnerable-plugins/social-warfare:/var/www/html/wp-content/plugins-custom/social-warfare:ro
+      - ./wordpress/vulnerable-plugins/wp-file-manager:/var/www/html/wp-content/plugins-custom/wp-file-manager:ro
     depends_on:
       - wordpress-db
 
