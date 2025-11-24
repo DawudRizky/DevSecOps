@@ -17,6 +17,22 @@ services:
     environment:
       - NODE_ENV=production
 
+  # Secure React/Vite Web Application
+  webapp-secure:
+    build:
+      context: ./project-management-secure
+      dockerfile: Dockerfile
+    container_name: vulnapp-webapp-secure
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    networks:
+      - vulnapp-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - NODE_ENV=production
+
   # Nginx Proxy Manager
   nginx-proxy-manager:
     image: jc21/nginx-proxy-manager:latest
@@ -79,8 +95,7 @@ services:
 
 networks:
   vulnapp-network:
-    name: vulnapp-network
-    driver: bridge
+    external: true
 
 volumes:
   npm-data:
