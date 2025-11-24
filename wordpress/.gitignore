@@ -1,0 +1,36 @@
+# WordPress Core
+wp-config.php
+wp-config.txt
+wp-content/uploads/
+wp-content/cache/
+wp-content/backup-db/
+
+# Exploits and payloads (security-sensitive)
+exploits/*.py
+exploits/*.sh
+exploits/*.txt
+exploits/*.md
+exploits/__pycache__/
+exploits/**/__pycache__/
+exploits/sample-payloads/
+!exploits/README.md
+
+# Vulnerable plugins
+vulnerable-plugins/
+
+# Logs
+*.log
+
+# Database files
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# Backup files
+*.backup
+*.bak
+
+# Editor
+.DS_Store
+.idea

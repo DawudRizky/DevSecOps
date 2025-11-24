@@ -1,0 +1,57 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+pnpm-debug.log*
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+.env.keys
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+*.local
+
+# Vulnerability documentation (security-sensitive)
+vulnerability-docs/
+**/VULNERABILITY_*.md
+**/LAPORAN_*.md
+**/*_EXPLOITATION.md
+**/*_DOCUMENTATION.md
+**/*_GUIDE.md
+**/COOKIE_*.md
+**/FILE_UPLOAD_*.md
+
+# Captured/exploited data (security-sensitive)
+listener/captured_data/
+**/captured_data/
+*.json.captured
+captured_*.json
+
+# Payload files
+payload/
+listener/payload/
+
+# Exploit scripts
+cookie_theft.js
+
+# Logs
+*.log
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# Docker
+.dockerignore

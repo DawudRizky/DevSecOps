@@ -1,0 +1,10 @@
+# Documentation files (operational procedures)
+QUICK_REFERENCE.md
+README_BACKUP_RESTORE.md
+
+# Logs
+*.log
+
+# Backup files
+*.backup
+*.bak
