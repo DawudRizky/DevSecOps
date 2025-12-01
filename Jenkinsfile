@@ -51,8 +51,18 @@ pipeline {
                     env.TARGET_BRANCH = params.VERSION == 'vulnerable' ? 'webapp-vulnerable' : 'main'
                     env.VERSION_DISPLAY = params.VERSION == 'vulnerable' ? '🔴 VULNERABLE (Unsecure)' : '🟢 SECURE (Patched)'
                     
-                    // Get actual current branch
-                    env.CURRENT_BRANCH = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    // Get actual current branch - handle detached HEAD state
+                    def currentBranchRaw = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    
+                    // If in detached HEAD, find which branch contains this commit
+                    if (currentBranchRaw == 'HEAD') {
+                        env.CURRENT_BRANCH = sh(
+                            script: 'git branch -r --contains HEAD | grep -E "origin/(main|webapp-vulnerable)" | head -1 | sed "s|.*origin/||"',
+                            returnStdout: true
+                        ).trim()
+                    } else {
+                        env.CURRENT_BRANCH = currentBranchRaw
+                    }
                     
                     echo """
                     ═══════════════════════════════════════════
@@ -71,7 +81,7 @@ pipeline {
                     
                     // Verify we're on the correct branch
                     if (env.CURRENT_BRANCH != env.TARGET_BRANCH) {
-                        error("❌ ERROR: Expected branch '${env.TARGET_BRANCH}' but currently on '${env.CURRENT_BRANCH}'. Please update Jenkins job configuration.")
+                        error("❌ ERROR: Expected branch '${env.TARGET_BRANCH}' but currently on '${env.CURRENT_BRANCH}'. Please update Jenkins job configuration to checkout '${env.TARGET_BRANCH}'.")
                     }
                 }
             }
