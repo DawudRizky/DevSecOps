@@ -79,12 +79,19 @@ pipeline {
                     ═══════════════════════════════════════════
                     """
                     
-                    // Warning if branch mismatch (but continue anyway)
+                    // Branch validation
                     if (env.CURRENT_BRANCH != env.TARGET_BRANCH) {
                         echo "⚠️  WARNING: Building VERSION='${params.VERSION}' from branch '${env.CURRENT_BRANCH}'"
                         echo "⚠️  Expected branch: '${env.TARGET_BRANCH}'"
-                        echo "⚠️  Make sure Jenkins is configured to checkout the correct branch!"
-                        echo "⚠️  Continuing with current branch content..."
+                        echo ""
+                        if (params.VERSION == 'secure' && env.CURRENT_BRANCH == 'webapp-vulnerable') {
+                            echo "⚠️  You selected VERSION=secure but code is from vulnerable branch"
+                            echo "⚠️  Security scans will detect issues and BLOCK deployment"
+                        } else if (params.VERSION == 'vulnerable' && env.CURRENT_BRANCH == 'main') {
+                            echo "⚠️  You selected VERSION=vulnerable but code is from secure branch"
+                            echo "⚠️  Security scans will likely pass (no vulnerabilities in code)"
+                        }
+                        echo ""
                     } else {
                         echo "✅ Branch matches expected version"
                     }
@@ -412,7 +419,6 @@ EOF
                                 -r zap-report.html \
                                 -J zap-report.json \
                                 -w zap-report.md \
-                                -c zap-config.conf \
                                 || true
                             
                             # Parse results
@@ -558,19 +564,20 @@ EOF
             🔒 Security Scan Results:
             ${failureReason.join('\n            ')}
             
+            ${params.VERSION == 'secure' ? '⚠️  VERSION=secure blocks deployment on security issues' : '⚠️  VERSION=vulnerable should allow deployment despite issues'}
+            
             Common issues:
-            - Security vulnerabilities in code (SAST)
-            - Vulnerable dependencies (Trivy)
-            - Runtime security issues (DAST)
+            - Security vulnerabilities in code (SAST) - blocks if VERSION=secure
+            - Vulnerable dependencies (Trivy) - blocks if VERSION=secure  
+            - Runtime security issues (DAST) - blocks if VERSION=secure
             - SSH connection failure
             - Docker build errors
             - Source directory not found
             - Health check timeout
-            - Wrong branch configured in Jenkins
+            - Branch mismatch (expected: ${env.TARGET_BRANCH ?: 'N/A'}, current: ${env.CURRENT_BRANCH ?: 'N/A'})
             
-            Expected Branch: ${env.TARGET_BRANCH ?: 'N/A'}
-            Current Branch: ${env.CURRENT_BRANCH ?: 'N/A'}
-            Version: ${params.VERSION}
+            💡 Tip: If VERSION=secure fails, vulnerabilities must be fixed before deployment
+            💡 Tip: If VERSION=vulnerable fails, check non-security issues (SSH, Docker, etc.)
             
             📋 Check scan reports:
             - semgrep-report.json (SAST)
