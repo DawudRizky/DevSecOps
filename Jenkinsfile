@@ -122,6 +122,17 @@ pipeline {
                 dir("${env.SOURCE_DIR}") {
                     script {
                         echo "Building Docker image: ${env.DOCKER_IMAGE}"
+                        
+                        sh """
+                            # Create .env file with Supabase configuration
+                            echo "Creating .env file for build..."
+                            cat > .env << 'EOF'
+VITE_SUPABASE_ANON_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
+VITE_SUPABASE_URL=http://project.tujuh:54321
+EOF
+                            
+                            # Build Docker image
+                            docker build -t ${env.DOCKER_IMAGE} \
                                 --label "project=kelompok-tujuh" \
                                 --label "built-by=${env.BUILD_USER_ID ?: 'jenkins'}" \
                                 --label "build-number=${env.BUILD_NUMBER}" \
@@ -129,12 +140,6 @@ pipeline {
                                 --label "git-branch=${env.CURRENT_BRANCH}" \
                                 --label "timestamp=\$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
                                 -f Dockerfile \
-                                --label "project=kelompok-tujuh" \
-                                --label "built-by=${env.BUILD_USER_ID ?: 'jenkins'}" \
-                                --label "build-number=${env.BUILD_NUMBER}" \
-                                --label "version=${params.VERSION}" \
-                                --label "git-branch=${env.GIT_BRANCH}" \
-                                --label "timestamp=\$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
                                 .
                             
                             # Verify image was created
