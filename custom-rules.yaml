@@ -1,0 +1,264 @@
+rules:
+  - id: client-side-cookie-access-control
+    patterns:
+      - pattern-either:
+          - pattern: document.cookie
+          - pattern: getCookieValue(...)
+      - pattern-inside: |
+          function $FUNC(...) {
+            ...
+          }
+    message: |
+      Potential Broken Access Control: Using client-side cookies for authorization decisions.
+      Cookies can be easily manipulated by users. Access control should be enforced on the server-side.
+      
+      CWE-639: Authorization Bypass Through User-Controlled Key
+      OWASP A01:2021 - Broken Access Control
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-639: Authorization Bypass Through User-Controlled Key"
+        - "CWE-284: Improper Access Control"
+      owasp:
+        - "A01:2021 - Broken Access Control"
+      category: security
+      technology:
+        - react
+        - typescript
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      subcategory:
+        - vuln
+
+  - id: insecure-cookie-based-role-check
+    patterns:
+      - pattern-either:
+          - pattern: |
+              const $ROLE = getCookieValue('user_role')
+          - pattern: |
+              const $ROLE = getCookieValue("user_role")
+          - pattern: |
+              $COOKIE.includes('user_role')
+      - pattern-inside: |
+          const $FUNC = async (...) => {
+            ...
+          }
+    message: |
+      Critical Broken Access Control: Role-based access control using client-side cookie.
+      The 'user_role' cookie can be modified by the user to escalate privileges.
+      This allows a regular member to change their role to 'manager' and access unauthorized data.
+      
+      Vulnerability Type: Authorization Bypass Through User-Controlled Key
+      CWE-639, CWE-284
+      OWASP A01:2021 - Broken Access Control
+      
+      Recommendation: Implement server-side role verification using JWT tokens or session data.
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-639: Authorization Bypass Through User-Controlled Key"
+        - "CWE-284: Improper Access Control"
+        - "CWE-602: Client-Side Enforcement of Server-Side Security"
+      owasp:
+        - "A01:2021 - Broken Access Control"
+      category: security
+      technology:
+        - react
+        - typescript
+      confidence: HIGH
+      likelihood: HIGH
+      impact: CRITICAL
+      subcategory:
+        - vuln
+
+  - id: dangerous-eval-usage
+    patterns:
+      - pattern: eval(...)
+    message: |
+      Dangerous use of eval() function. This can lead to Remote Code Execution (RCE).
+      User-controlled input passed to eval() allows arbitrary code execution.
+      
+      CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')
+      OWASP A03:2021 - Injection
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-95: Eval Injection"
+        - "CWE-94: Code Injection"
+      owasp:
+        - "A03:2021 - Injection"
+      category: security
+      confidence: HIGH
+      likelihood: HIGH
+      impact: CRITICAL
+
+  - id: dangerously-set-innerhtml
+    patterns:
+      - pattern-either:
+          - pattern: |
+              <$EL dangerouslySetInnerHTML={{__html: $VAR}} />
+          - pattern: $REF.current.innerHTML = $VAR
+          - pattern: $EL.innerHTML = $VAR
+    message: |
+      Cross-Site Scripting (XSS) vulnerability detected.
+      Setting innerHTML with user-controlled content allows execution of malicious scripts.
+      This is a Stored XSS vulnerability that can steal cookies, session tokens, or perform actions on behalf of users.
+      
+      CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')
+      OWASP A03:2021 - Injection
+      
+      Example attack payload: <img src=x onerror=alert(document.cookie)>
+      
+      Recommendation: Use textContent instead of innerHTML, or sanitize input with DOMPurify.
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-79: Cross-site Scripting (XSS)"
+      owasp:
+        - "A03:2021 - Injection"
+      category: security
+      technology:
+        - react
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      subcategory:
+        - vuln
+
+  - id: insecure-file-upload-no-validation
+    patterns:
+      - pattern-either:
+          - pattern: |
+              const handleFileUpload = async (...) => {
+                ...
+                await supabase.storage.from('files').upload(...)
+                ...
+              }
+          - pattern: |
+              async function handleFileUpload(...) {
+                ...
+                await supabase.storage.from('files').upload(...)
+                ...
+              }
+      - pattern-not-inside: |
+          if ($FILE.type === ...) {
+            ...
+          }
+      - pattern-not-inside: |
+          const allowedTypes = [...]
+    message: |
+      Unrestricted File Upload vulnerability. No file type validation detected.
+      This can lead to:
+      1. Remote Code Execution (RCE) if malicious files are uploaded
+      2. Stored XSS if HTML/JS files are uploaded
+      3. Server compromise if executable files are uploaded
+      
+      CWE-434: Unrestricted Upload of File with Dangerous Type
+      OWASP A08:2021 - Software and Data Integrity Failures
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-434: Unrestricted Upload of File with Dangerous Type"
+      owasp:
+        - "A08:2021 - Software and Data Integrity Failures"
+      category: security
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: CRITICAL
+
+  - id: supabase-client-side-query-all
+    patterns:
+      - pattern-either:
+          - pattern: |
+              const { data } = await supabase.from($TABLE).select(...)
+          - pattern: |
+              await supabase.from($TABLE).select(...)
+      - pattern-not-inside: |
+          .eq('user_id', ...)
+      - pattern-not-inside: |
+          .filter(...)
+    message: |
+      Potential data exposure: Fetching all records without user-specific filtering.
+      Ensure proper Row Level Security (RLS) policies are enabled on Supabase.
+      
+      Without server-side filtering, all users can access all data.
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-284: Improper Access Control"
+      owasp:
+        - "A01:2021 - Broken Access Control"
+      category: security
+      technology:
+        - supabase
+      confidence: MEDIUM
+
+  - id: stored-xss-unsanitized-input
+    patterns:
+      - pattern-either:
+          - pattern: |
+              await supabase.from($TABLE).insert({
+                ...,
+                content: $VAR.trim(),
+                ...
+              })
+          - pattern: |
+              await supabase.from($TABLE).insert({
+                ...,
+                content: $VAR,
+                ...
+              })
+      - pattern-not-inside: |
+          const $SANITIZED = $VAR.replace(...)
+    message: |
+      Stored XSS vulnerability: Unsanitized user input stored in database.
+      User input is stored without sanitization and later rendered with innerHTML.
+      This creates a persistent XSS vulnerability where malicious scripts remain in the database.
+      
+      Attack scenario:
+      1. Attacker submits XSS payload: <img src=x onerror=alert(document.cookie)>
+      2. Payload stored in database without sanitization
+      3. When other users view the content, payload executes in their browsers
+      
+      CWE-79: Cross-site Scripting (XSS)
+      CWE-116: Improper Encoding or Escaping of Output
+      OWASP A03:2021 - Injection
+      
+      Recommendation: Sanitize input before storage or use safe rendering methods.
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-79: Cross-site Scripting (XSS)"
+        - "CWE-116: Improper Encoding or Escaping of Output"
+      owasp:
+        - "A03:2021 - Injection"
+      category: security
+      technology:
+        - supabase
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      subcategory:
+        - vuln
