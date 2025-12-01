@@ -179,22 +179,20 @@ EOF
                                 
                                 def semgrepStatus = sh(
                                     script: '''
-                                        # Install semgrep if not available
-                                        if ! command -v semgrep &> /dev/null; then
-                                            echo "Installing Semgrep..."
-                                            pip3 install semgrep --quiet || python3 -m pip install semgrep --quiet
-                                        fi
-                                        
-                                        # Run Semgrep with security rules
-                                        echo "Scanning for security vulnerabilities..."
-                                        semgrep scan --config=auto \
+                                        # Run Semgrep using Docker
+                                        echo "Scanning for security vulnerabilities with Semgrep..."
+                                        docker run --rm \
+                                            -v "$(pwd):/src:ro" \
+                                            -v "$(pwd)/..:/output:rw" \
+                                            returntocorp/semgrep \
+                                            semgrep scan --config=auto \
                                             --exclude='*.test.tsx' \
                                             --exclude='*.test.ts' \
                                             --exclude='node_modules' \
                                             --exclude='dist' \
                                             --json \
-                                            --output=../semgrep-report.json \
-                                            . || true
+                                            --output=/output/semgrep-report.json \
+                                            /src || true
                                         
                                         # Check for HIGH/CRITICAL findings
                                         if [ -f ../semgrep-report.json ]; then
@@ -233,23 +231,15 @@ EOF
                             
                             def trivyStatus = sh(
                                 script: """
-                                    # Install trivy if not available
-                                    if ! command -v trivy &> /dev/null; then
-                                        echo "Installing Trivy..."
-                                        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-                                        echo "deb https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-                                        sudo apt-get update -qq && sudo apt-get install -y trivy
-                                    fi
-                                    
-                                    # Update vulnerability database
-                                    trivy image --download-db-only
-                                    
-                                    # Scan Docker image
+                                    # Run Trivy using Docker
                                     echo "Scanning image: ${env.DOCKER_IMAGE}"
-                                    trivy image \
+                                    docker run --rm \
+                                        -v /var/run/docker.sock:/var/run/docker.sock:ro \
+                                        -v "\$(pwd):/output:rw" \
+                                        aquasec/trivy:latest image \
                                         --severity HIGH,CRITICAL \
                                         --format json \
-                                        --output trivy-report.json \
+                                        --output /output/trivy-report.json \
                                         ${env.DOCKER_IMAGE} || true
                                     
                                     # Check for vulnerabilities
