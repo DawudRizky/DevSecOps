@@ -203,7 +203,7 @@ EOF
                                             
                                             if [ "$CRITICAL_COUNT" -gt 0 ]; then
                                                 echo "❌ SAST FAILED: Found $CRITICAL_COUNT security vulnerabilities"
-                                                jq -r '.results[] | select(.extra.severity == "ERROR" or .extra.severity == "WARNING") | "[\(.extra.severity)] \(.check_id): \(.extra.message) in \(.path):\(.start.line)"' ../semgrep-report.json
+                                                jq -r '.results[] | select(.extra.severity == "ERROR" or .extra.severity == "WARNING") | "[" + .extra.severity + "] " + .check_id + ": " + .extra.message + " in " + .path + ":" + (.start.line | tostring)' ../semgrep-report.json
                                                 exit 1
                                             else
                                                 echo "✅ SAST PASSED: No critical vulnerabilities found"
@@ -424,7 +424,7 @@ EOF
                                 
                                 if [ "\$HIGH_RISK" -gt 0 ]; then
                                     echo "❌ DAST FAILED: Found \$HIGH_RISK HIGH risk vulnerabilities"
-                                    jq -r '.site[].alerts[] | select(.riskcode == "3") | "[\(.risk)] \(.name): \(.desc)"' zap-report.json 2>/dev/null | head -10
+                                    jq -r '.site[].alerts[] | select(.riskcode == "3") | "[" + .risk + "] " + .name + ": " + .desc' zap-report.json 2>/dev/null | head -10
                                     exit 1
                                 else
                                     echo "✅ DAST PASSED: No HIGH risk vulnerabilities found"
