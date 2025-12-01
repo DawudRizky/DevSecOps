@@ -23,28 +23,28 @@ dist-ssr/
 build/
 *.local
 
-# Documentation files (keep only README.md)
-DOCUMENTATION.md
-DOCUMENTATION.md.backup
-FIX_PROJECT_TUJUH_CORS.md
-**/vulnerability-docs/
-**/VULNERABILITY_*.md
-**/LAPORAN_*.md
-**/SECURITY_PATCHES.md
-**/DEFACEMENT_*.md
-**/UPDATE_SUMMARY.md
-**/PAYLOAD_*.md
-**/QUICK_REFERENCE.md
-**/README_BACKUP_RESTORE.md
-**/*_EXPLOITATION.md
-**/*_DOCUMENTATION.md
-**/*_GUIDE.md
+# # Documentation files (keep only README.md)
+# DOCUMENTATION.md
+# DOCUMENTATION.md.backup
+# FIX_PROJECT_TUJUH_CORS.md
+# **/vulnerability-docs/
+# **/VULNERABILITY_*.md
+# **/LAPORAN_*.md
+# **/SECURITY_PATCHES.md
+# **/DEFACEMENT_*.md
+# **/UPDATE_SUMMARY.md
+# **/PAYLOAD_*.md
+# **/QUICK_REFERENCE.md
+# **/README_BACKUP_RESTORE.md
+# **/*_EXPLOITATION.md
+# **/*_DOCUMENTATION.md
+# **/*_GUIDE.md
 
-# SAST/Security scanning results
-.scannerwork/
-**/SAST/
-**/sast.md
-**/semgrep_summary*.md
+# # SAST/Security scanning results
+# .scannerwork/
+# **/SAST/
+# **/sast.md
+# **/semgrep_summary*.md
 
 # Logs
 logs/
