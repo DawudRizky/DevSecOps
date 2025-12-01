@@ -1,0 +1,36 @@
+@echo off
+echo.
+echo =====================================================
+echo   🚨 PAYLOAD COLLECTION - SECURITY RESEARCH
+echo =====================================================
+echo.
+echo Opening payload collection index...
+echo.
+
+:: Start the payload index in default browser
+start "" "payload\index.html"
+
+echo.
+echo ✅ Payload collection opened in browser
+echo.
+echo Available payloads:
+echo.
+echo JavaScript Payloads:
+echo   - malicious_payload.js (CRITICAL)
+echo   - backdoor_access.js (CRITICAL) 
+echo   - reverse_shell.js (HIGH)
+echo.
+echo Python Payloads:
+echo   - server_penetration.py (CRITICAL)
+echo   - reverse_shell.py (HIGH)
+echo.
+echo Shell Scripts:
+echo   - advanced_backdoor.sh (CRITICAL)
+echo   - reverse_shell.sh (HIGH)
+echo.
+echo HTML/XSS:
+echo   - innocent_document.html (CRITICAL)
+echo.
+echo ⚠️  USE ONLY IN ISOLATED ENVIRONMENTS!
+echo.
+pause
