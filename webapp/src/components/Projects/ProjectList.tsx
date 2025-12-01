@@ -16,36 +16,19 @@ export function ProjectList() {
   const [showModal, setShowModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const { profile } = useAuth();
-  useEffect(() => {
-    loadProjects();
-  }, []);
-
+  
   const loadProjects = async () => {
     try {
-      // VULNERABILITY: BROKEN ACCESS CONTROL
-      // Role-based access control menggunakan cookies yang bisa dimanipulasi client-side
-      
-      // VULNERABILITY: Ambil role dari cookies (client-side, tidak aman!)
-      const getCookieValue = (name: string) => {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop()?.split(';').shift();
-        return null;
-      };
+      if (!profile) {
+        console.log('⚠️ No profile loaded yet');
+        setProjects([]);
+        return;
+      }
 
-      const userRole = getCookieValue('user_role'); // ⚠️ VULNERABILITY: Trust client-side data
-      const userId = getCookieValue('user_id');
+      console.log('🔍 Loading projects with role:', profile.role);
       
-      console.log('🔍 Loading projects with role:', userRole);
-      console.log('🔍 User ID:', userId);
-      
-      // VULNERABILITY: CRITICAL - Access control based on client-side cookie
-      // Attacker bisa ubah cookie "user_role" dari "Member" ke "Manager"
-      // untuk mendapatkan akses ke semua projects!
-      
-      if (userRole === 'Manager') {
-        // VULNERABILITY: Manager dapat melihat SEMUA projects tanpa filter
-        console.log('⚠️ MANAGER MODE: Fetching ALL projects (no filtering)');
+      if (profile.role === 'Manager') {
+        console.log('👔 MANAGER MODE: Fetching ALL projects');
         
         const { data, error } = await supabase
           .from("projects")
@@ -62,25 +45,15 @@ export function ProjectList() {
         setProjects(data || []);
         
       } else {
-        // Member seharusnya hanya lihat projects dimana dia adalah member
         console.log('👤 MEMBER MODE: Fetching only user projects');
         
-        if (!userId) {
-          console.log('⚠️ No user ID found in cookies');
-          setProjects([]);
-          return;
-        }
-        
-        // ✅ SEHARUSNYA: Filter berdasarkan project membership
-        // Step 1: Get project IDs where user is a member
         const { data: memberProjects, error: memberError } = await supabase
           .from('project_members')
           .select('project_id')
-          .eq('user_id', userId);
+          .eq('user_id', profile.id);
         
         if (memberError) throw memberError;
         
-        // Extract project IDs
         const projectIds = memberProjects?.map((pm) => (pm as { project_id: string }).project_id) || [];
         
         if (projectIds.length === 0) {
@@ -89,7 +62,6 @@ export function ProjectList() {
           return;
         }
         
-        // Step 2: Fetch projects where user is a member WITH member count
         const { data, error } = await supabase
           .from("projects")
           .select(
@@ -106,19 +78,19 @@ export function ProjectList() {
         setProjects(data || []);
       }
       
-      // VULNERABILITY SUMMARY:
-      // 🔴 Role diambil dari cookies (client-side) bukan server validation
-      // 🔴 User bisa manipulasi cookie "user_role" dari "Member" → "Manager"
-      // 🔴 Setelah ubah role, user biasa bisa lihat SEMUA projects
-      // 🔴 Tidak ada server-side authorization check
-      // 🔴 Horizontal privilege escalation vulnerability
-      
     } catch (error) {
       console.error("Error loading projects:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (profile) {
+      loadProjects();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile]);
 
   const getStatusColor = (status: string) => {
     const colors = {
