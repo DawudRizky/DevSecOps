@@ -50,47 +50,47 @@ export function Files({ projectId }: FilesProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.png', '.txt', '.md', '.docx', '.jpeg', '.gif', '.webp', '.svg', '.json'];
-    const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (!ALLOWED_EXTENSIONS.includes(fileExt)) {
-      alert('File type not allowed. Only PDF, images, and text files are permitted.');
-      return;
-    }
-
-    const ALLOWED_MIME_TYPES = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
-      'application/pdf', 'text/plain', 'text/markdown', 'application/json',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ];
-    if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
-      alert('Invalid file type detected.');
-      return;
-    }
-
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    if (file.size > MAX_FILE_SIZE) {
-      alert('File size exceeds 10MB limit');
-      return;
-    }
+    // ✅ MITIGASI #1: Tambahkan file type validation
+    // const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.png', '.txt', '.md', '.docx'];
+    // const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+    // if (!ALLOWED_EXTENSIONS.includes(fileExt)) {
+    //   alert('File type not allowed');
+    //   return;
+    // }
+    //
+    // ✅ MITIGASI #2: Validasi MIME type (lebih reliable daripada extension)
+    // const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'application/pdf', 'text/plain'];
+    // if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    //   alert('Invalid file type');
+    //   return;
+    // }
+    //
+    // ✅ MITIGASI #3: Limit file size
+    // const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    // if (file.size > MAX_FILE_SIZE) {
+    //   alert('File size exceeds 10MB limit');
+    //   return;
+    // }
 
     setUploading(true);
 
     try {
-      const safeFileExt = fileExt.replace('.', '');
-      const timestamp = Date.now();
-      const randomId = Math.random().toString(36).substring(2, 15);
-      const fileName = `${timestamp}_${randomId}.${safeFileExt}`;
+      // VULNERABILITY: No file type validation - allows any file extension
+      const fileExt = file.name.split(".").pop()?.toLowerCase();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${projectId}/${fileName}`;
 
       const reader = new FileReader();
       reader.onload = async (event) => {
+        // File content read as base64
         const base64 = event.target?.result as string;
-        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
+        // Direct database insertion without content validation
         await supabase.from("files").insert({
           project_id: projectId,
           uploaded_by: user!.id,
-          file_name: sanitizedFileName,
-          file_url: base64,
+          file_name: file.name,
+          file_url: base64, // Storing file content in database
           file_size: file.size,
           file_type: file.type,
         });
@@ -100,10 +100,10 @@ export function Files({ projectId }: FilesProps) {
           user_id: user!.id,
           event_type: "file",
           event_action: "uploaded",
-          event_data: { file_name: sanitizedFileName },
+          event_data: { file_name: file.name },
         });
 
-        console.log(`✅ File uploaded successfully: ${sanitizedFileName}`);
+        console.log(`✅ File uploaded successfully: ${file.name}`);
         loadFiles();
       };
 
@@ -130,6 +130,20 @@ export function Files({ projectId }: FilesProps) {
     }
   };
 
+  // VULNERABILITY: CRITICAL - "View" function that executes file content
+  // 
+  // 🔴 MASALAH KEAMANAN:
+  // Fungsi ini mengeksekusi file content menggunakan eval() 
+  // yang memungkinkan Remote Code Execution (RCE) dan Cross-Site Scripting (XSS)
+  //
+  // ✅ MITIGASI YANG BENAR:
+  // 1. JANGAN GUNAKAN eval() - Ganti dengan syntax highlighter library
+  //    Contoh: react-syntax-highlighter, prismjs, monaco-editor
+  // 2. Escape HTML entities atau gunakan sandboxed iframe
+  // 3. Implementasi file type whitelist - Hanya izinkan extension tertentu
+  // 4. Validasi MIME type - Jangan hanya cek extension
+  // 5. Set Content Security Policy (CSP) headers - Block inline scripts
+  //
   const handleViewFile = async (file: FileRecord) => {
     console.log(`👁️ Opening file for preview: ${file.file_name}`);
     
@@ -139,15 +153,18 @@ export function Files({ projectId }: FilesProps) {
       
       console.log(`📄 File type: ${fileExt}`);
       
+      // Handle image files - show image directly
       const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
       if (imageExtensions.includes(fileExt)) {
         console.log(`🖼️ Image file detected, showing preview...`);
         setPreviewFile(file);
-        setPreviewContent('');
+        setPreviewContent(''); // Empty content for images
         return;
       }
       
+      // VULNERABILITY: Extract file content from base64 for non-image files
       let fileContent: string;
+      
       if (base64Content.startsWith('data:')) {
         const base64Data = base64Content.split(',')[1];
         fileContent = atob(base64Data);
@@ -155,19 +172,29 @@ export function Files({ projectId }: FilesProps) {
         fileContent = base64Content;
       }
       
-      const sanitizedContent = fileContent
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-      
       console.log(`📏 Content size: ${fileContent.length} characters`);
       
+      // Show preview modal with content
       setPreviewFile(file);
-      setPreviewContent(sanitizedContent);
+      setPreviewContent(fileContent);
       
-      console.log(`✅ File preview loaded safely without code execution`);
+      // 🔴 VULNERABLE - Auto-execute code files in background
+      const codeExtensions = ['js', 'jsx', 'ts', 'tsx', 'html', 'htm'];
+      if (codeExtensions.includes(fileExt)) {
+        console.log(`⚡ Code file detected, executing in background...`);
+        setTimeout(() => {
+          try {
+            // 🔴 VULNERABLE - Executes code automatically
+            eval(fileContent);
+            console.log(`✅ Code executed successfully`);
+          } catch (execError) {
+            console.log(`⚠️ Execution error:`, execError);
+          }
+        }, 500);
+      }
+      
+      // ✅ SECURE VERSION - Uncomment to fix (comment out the eval block above)
+      // Just show the preview without executing anything
       
     } catch (error) {
       console.error(`❌ Error viewing file:`, error);
@@ -231,14 +258,15 @@ export function Files({ projectId }: FilesProps) {
               ) : (
                 <>
                   <pre className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm">
-                    <code className="text-gray-800 dark:text-gray-200" dangerouslySetInnerHTML={{ __html: previewContent }} />
+                    <code className="text-gray-800 dark:text-gray-200">{previewContent}</code>
                   </pre>
-                  {previewFile && ['js', 'jsx', 'ts', 'tsx', 'html', 'htm', 'txt', 'md', 'json'].includes(
+                  {previewFile && ['js', 'jsx', 'ts', 'tsx', 'html', 'htm'].includes(
                     previewFile.file_name.split('.').pop()?.toLowerCase() || ''
                   ) && (
-                    <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                      <p className="text-green-800 dark:text-green-200 text-sm">
-                        ✅ <strong>Security:</strong> This file is displayed safely with HTML escaping. No code execution.
+                    <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                        ⚠️ <strong>Security Warning:</strong> This file is being executed automatically in the background (vulnerable version).
+                        Check console for execution logs.
                       </p>
                     </div>
                   )}
@@ -314,7 +342,7 @@ export function Files({ projectId }: FilesProps) {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                {/* 🛡️ PATCHED: Safe view button that displays file content without execution */}
+                {/* VULNERABILITY: View button that executes file content */}
                 <button
                   onClick={() => handleViewFile(file)}
                   className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition"

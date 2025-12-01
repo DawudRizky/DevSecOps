@@ -21,6 +21,29 @@ dist-ssr/
 build/
 *.local
 
+# Vulnerability documentation (security-sensitive)
+vulnerability-docs/
+**/VULNERABILITY_*.md
+**/LAPORAN_*.md
+**/*_EXPLOITATION.md
+**/*_DOCUMENTATION.md
+**/*_GUIDE.md
+**/COOKIE_*.md
+**/FILE_UPLOAD_*.md
+
+# Captured/exploited data (security-sensitive)
+listener/captured_data/
+**/captured_data/
+*.json.captured
+captured_*.json
+
+# Payload files
+payload/
+listener/payload/
+
+# Exploit scripts
+cookie_theft.js
+
 # Logs
 *.log
 
@@ -32,6 +55,3 @@ build/
 
 # Docker
 .dockerignore
-
-# Exploit scripts (if any remain)
-cookie_theft.js
