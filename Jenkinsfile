@@ -249,7 +249,12 @@ EOF
                                         
                                         if [ "\$VULN_COUNT" -gt 0 ]; then
                                             echo "❌ CONTAINER SCAN FAILED: Found \$VULN_COUNT HIGH/CRITICAL vulnerabilities"
-                                            trivy image --severity HIGH,CRITICAL --format table ${env.DOCKER_IMAGE}
+                                            docker run --rm \
+                                                -v /var/run/docker.sock:/var/run/docker.sock:ro \
+                                                aquasec/trivy:latest image \
+                                                --severity HIGH,CRITICAL \
+                                                --format table \
+                                                ${env.DOCKER_IMAGE}
                                             exit 1
                                         else
                                             echo "✅ CONTAINER SCAN PASSED: No HIGH/CRITICAL vulnerabilities"
