@@ -560,7 +560,6 @@ EOF
             """
             }
         }
-        }
         
         always {
             script {
