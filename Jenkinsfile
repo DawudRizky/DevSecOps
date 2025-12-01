@@ -186,13 +186,24 @@ EOF
                                 
                                 def semgrepStatus = sh(
                                     script: '''
-                                        # Run Semgrep using Docker
+                                        # Run Semgrep using Docker with custom rules
                                         echo "Scanning for security vulnerabilities with Semgrep..."
+                                        
+                                        # Check if custom rules exist
+                                        if [ -f ../custom-rules.yaml ]; then
+                                            echo "✅ Found custom-rules.yaml - using custom rules + auto config"
+                                            CONFIG_OPTION="--config=auto --config=/rules/custom-rules.yaml"
+                                        else
+                                            echo "⚠️  custom-rules.yaml not found - using auto config only"
+                                            CONFIG_OPTION="--config=auto"
+                                        fi
+                                        
                                         docker run --rm \
                                             -v "$(pwd):/src:ro" \
                                             -v "$(pwd)/..:/output:rw" \
+                                            -v "$(pwd)/../custom-rules.yaml:/rules/custom-rules.yaml:ro" \
                                             returntocorp/semgrep \
-                                            semgrep scan --config=auto \
+                                            semgrep scan $CONFIG_OPTION \
                                             --exclude='*.test.tsx' \
                                             --exclude='*.test.ts' \
                                             --exclude='node_modules' \
