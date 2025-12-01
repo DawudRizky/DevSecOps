@@ -5,7 +5,7 @@ pipeline {
         choice(
             name: 'VERSION', 
             choices: ['secure', 'vulnerable'], 
-            description: 'Select webapp version to deploy'
+            description: 'secure: Block deployment if security issues found | vulnerable: Deploy despite security issues (demo mode)'
         )
         string(
             name: 'TARGET_HOST',
@@ -217,7 +217,11 @@ EOF
                                 
                                 if (semgrepStatus != 0) {
                                     env.SAST_FAILED = 'true'
-                                    error("❌ SAST scan detected security vulnerabilities!")
+                                    if (params.VERSION == 'secure') {
+                                        error("❌ SAST scan detected security vulnerabilities! Deployment BLOCKED for secure version.")
+                                    } else {
+                                        echo "⚠️  SAST scan found vulnerabilities, but VERSION=vulnerable - continuing deployment for demo purposes"
+                                    }
                                 }
                             }
                         }
@@ -270,7 +274,11 @@ EOF
                             
                             if (trivyStatus != 0) {
                                 env.TRIVY_FAILED = 'true'
-                                error("❌ Container scan detected HIGH/CRITICAL vulnerabilities!")
+                                if (params.VERSION == 'secure') {
+                                    error("❌ Container scan detected HIGH/CRITICAL vulnerabilities! Deployment BLOCKED for secure version.")
+                                } else {
+                                    echo "⚠️  Container scan found HIGH/CRITICAL vulnerabilities, but VERSION=vulnerable - continuing deployment for demo purposes"
+                                }
                             }
                         }
                     }
@@ -435,7 +443,11 @@ EOF
                     
                     if (zapStatus != 0) {
                         env.DAST_FAILED = 'true'
-                        error("❌ DAST scan detected HIGH risk vulnerabilities!")
+                        if (params.VERSION == 'secure') {
+                            error("❌ DAST scan detected HIGH risk vulnerabilities! Deployment BLOCKED for secure version.")
+                        } else {
+                            echo "⚠️  DAST scan found HIGH risk vulnerabilities, but VERSION=vulnerable - allowing deployment for demo purposes"
+                        }
                     }
                 }
             }
@@ -492,16 +504,29 @@ EOF
                     ═══════════════════════════════════════════
                     """
                 } else {
+                    def securityStatus = ""
+                    if (params.VERSION == 'vulnerable') {
+                        def warnings = []
+                        if (env.SAST_FAILED == 'true') warnings.add("⚠️  SAST: Issues found (ignored)")
+                        if (env.TRIVY_FAILED == 'true') warnings.add("⚠️  Trivy: Vulnerabilities found (ignored)")
+                        if (env.DAST_FAILED == 'true') warnings.add("⚠️  DAST: High risks found (ignored)")
+                        
+                        if (warnings.isEmpty()) {
+                            securityStatus = "🔒 Security Scans:\n    - ✅ All scans passed"
+                        } else {
+                            securityStatus = "⚠️  Security Issues Ignored (VERSION=vulnerable):\n    " + warnings.join("\n    ")
+                        }
+                    } else {
+                        securityStatus = "🔒 Security Scans Passed:\n    - ✅ SAST (Semgrep): No critical vulnerabilities\n    - ✅ Container Scan (Trivy): No HIGH/CRITICAL CVEs\n    - ✅ DAST (OWASP ZAP): No HIGH risk issues"
+                    }
+                    
                     echo """
                     ✅ DEPLOYMENT SUCCESSFUL
                     ═══════════════════════════════════════════
                     Version ${params.VERSION} deployed from branch ${env.CURRENT_BRANCH}
                     Access at: http://project.tujuh or http://10.34.100.160:3000
                     
-                    🔒 Security Scans Passed:
-                    - ✅ SAST (Semgrep): No critical vulnerabilities
-                    - ✅ Container Scan (Trivy): No HIGH/CRITICAL CVEs
-                    - ✅ DAST (OWASP ZAP): No HIGH risk issues
+                    ${securityStatus}
                     ═══════════════════════════════════════════
                     """
                 }
