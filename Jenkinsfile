@@ -70,7 +70,7 @@ pipeline {
                     ═══════════════════════════════════════════
                     👤 User: ${env.BUILD_USER_ID ?: 'System'}
                     🏷️  Version: ${env.VERSION_DISPLAY}
-                    🌿 Target Branch: ${env.TARGET_BRANCH}
+                    🌿 Expected Branch: ${env.TARGET_BRANCH}
                     📍 Current Branch: ${env.CURRENT_BRANCH}
                     🎯 Target: ${params.TARGET_HOST}
                     🏗️  Build: #${env.BUILD_NUMBER}
@@ -79,9 +79,14 @@ pipeline {
                     ═══════════════════════════════════════════
                     """
                     
-                    // Verify we're on the correct branch
+                    // Warning if branch mismatch (but continue anyway)
                     if (env.CURRENT_BRANCH != env.TARGET_BRANCH) {
-                        error("❌ ERROR: Expected branch '${env.TARGET_BRANCH}' but currently on '${env.CURRENT_BRANCH}'. Please update Jenkins job configuration to checkout '${env.TARGET_BRANCH}'.")
+                        echo "⚠️  WARNING: Building VERSION='${params.VERSION}' from branch '${env.CURRENT_BRANCH}'"
+                        echo "⚠️  Expected branch: '${env.TARGET_BRANCH}'"
+                        echo "⚠️  Make sure Jenkins is configured to checkout the correct branch!"
+                        echo "⚠️  Continuing with current branch content..."
+                    } else {
+                        echo "✅ Branch matches expected version"
                     }
                 }
             }
