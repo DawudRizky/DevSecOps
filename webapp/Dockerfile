@@ -24,6 +24,9 @@ RUN npm run build && \
 # Production stage with nginx
 FROM nginx:alpine
 
+# Update Alpine packages to fix vulnerabilities (especially libpng CVEs)
+RUN apk upgrade --no-cache libpng
+
 # Copy built files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
