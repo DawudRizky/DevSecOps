@@ -109,6 +109,13 @@ rules:
               <$EL dangerouslySetInnerHTML={{__html: $VAR}} />
           - pattern: $REF.current.innerHTML = $VAR
           - pattern: $EL.innerHTML = $VAR
+      - pattern-not-inside: |
+          const $ESCAPED = $INPUT.replace(/&/g, '&amp;')...
+          ...
+      - pattern-not-inside: |
+          $CONTENT = $INPUT
+            .replace(/&/g, '&amp;')
+            ...
     message: |
       Cross-Site Scripting (XSS) vulnerability detected.
       Setting innerHTML with user-controlled content allows execution of malicious scripts.
@@ -213,22 +220,33 @@ rules:
       confidence: MEDIUM
 
   - id: stored-xss-unsanitized-input
-    patterns:
-      - pattern-either:
+    pattern-either:
+      - patterns:
           - pattern: |
               await supabase.from($TABLE).insert({
                 ...,
                 content: $VAR.trim(),
                 ...
               })
+          - pattern-not-inside: |
+              $SANITIZED = $VAR.trim().replace(...)
+              ...
+      - patterns:
           - pattern: |
               await supabase.from($TABLE).insert({
                 ...,
                 content: $VAR,
                 ...
               })
-      - pattern-not-inside: |
-          const $SANITIZED = $VAR.replace(...)
+          - pattern-not: |
+              await supabase.from($TABLE).insert({
+                ...,
+                content: $SANITIZED,
+                ...
+              })
+          - pattern-not-inside: |
+              const $SANITIZED = ...
+              ...
     message: |
       Stored XSS vulnerability: Unsanitized user input stored in database.
       User input is stored without sanitization and later rendered with innerHTML.
