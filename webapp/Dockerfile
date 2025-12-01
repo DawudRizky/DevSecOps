@@ -13,8 +13,8 @@ RUN npm ci --ignore-scripts && \
 # Copy source code
 COPY . .
 
-# Copy production environment file
-COPY .env.production .env
+# Environment file should already exist from build context
+# (created by CI/CD or copied from .env.example locally)
 
 # Build the app with production environment
 RUN npm run build && \
