@@ -35,3 +35,5 @@ build/
 
 # Exploit scripts (if any remain)
 cookie_theft.js
+
+vulnerability-docs/
