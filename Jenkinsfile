@@ -47,9 +47,12 @@ pipeline {
         stage('🔍 Pre-flight Check') {
             steps {
                 script {
-                    // Determine branch based on version
-                    env.GIT_BRANCH = params.VERSION == 'vulnerable' ? 'webapp-vulnerable' : 'main'
+                    // Determine which branch should be used
+                    env.TARGET_BRANCH = params.VERSION == 'vulnerable' ? 'webapp-vulnerable' : 'main'
                     env.VERSION_DISPLAY = params.VERSION == 'vulnerable' ? '🔴 VULNERABLE (Unsecure)' : '🟢 SECURE (Patched)'
+                    
+                    // Get actual current branch
+                    env.CURRENT_BRANCH = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
                     
                     echo """
                     ═══════════════════════════════════════════
@@ -57,37 +60,19 @@ pipeline {
                     ═══════════════════════════════════════════
                     👤 User: ${env.BUILD_USER_ID ?: 'System'}
                     🏷️  Version: ${env.VERSION_DISPLAY}
-                    🌿 Branch: ${env.GIT_BRANCH}
+                    🌿 Target Branch: ${env.TARGET_BRANCH}
+                    📍 Current Branch: ${env.CURRENT_BRANCH}
                     🎯 Target: ${params.TARGET_HOST}
                     🏗️  Build: #${env.BUILD_NUMBER}
                     📅 Time: ${new Date()}
                     ${params.DRY_RUN ? '⚠️  DRY RUN MODE - Build only, no deployment' : '✅ Full deployment enabled'}
                     ═══════════════════════════════════════════
                     """
-                }
-            }
-        }
-        
-        stage('📥 Checkout Source') {
-            steps {
-                script {
-                    echo "Checking out branch: ${env.GIT_BRANCH} from ${env.GIT_REPO}"
                     
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: "*/${env.GIT_BRANCH}"]],
-                        userRemoteConfigs: [[url: env.GIT_REPO]],
-                        extensions: [[$class: 'CleanBeforeCheckout']]
-                    ])
-                    
-                    // Display branch info
-                    sh """
-                        echo "📍 Current branch:"
-                        git branch -a | grep '\\*'
-                        echo ""
-                        echo "📝 Latest commit:"
-                        git log -1 --oneline
-                    """
+                    // Verify we're on the correct branch
+                    if (env.CURRENT_BRANCH != env.TARGET_BRANCH) {
+                        error("❌ ERROR: Expected branch '${env.TARGET_BRANCH}' but currently on '${env.CURRENT_BRANCH}'. Please update Jenkins job configuration.")
+                    }
                 }
             }
         }
@@ -98,7 +83,14 @@ pipeline {
                     echo """
                     📂 Source Directory: ${env.SOURCE_DIR}
                     📋 Version: ${env.VERSION_DISPLAY}
-                    🌿 Branch: ${env.GIT_BRANCH}
+                    🌿 Branch: ${env.CURRENT_BRANCH}
+                    """
+                    
+                    // Display current commit info
+                    sh """
+                        echo "📝 Current commit:"
+                        git log -1 --oneline
+                        echo ""
                     """
                     
                     // Verify source directory exists
@@ -130,12 +122,12 @@ pipeline {
                 dir("${env.SOURCE_DIR}") {
                     script {
                         echo "Building Docker image: ${env.DOCKER_IMAGE}"
-                        echo "From branch: ${env.GIT_BRANCH}"
-                        
-                        sh """
-                            # Build with multi-stage Dockerfile
-                            docker build \
-                                -t ${env.DOCKER_IMAGE} \
+                                --label "project=kelompok-tujuh" \
+                                --label "built-by=${env.BUILD_USER_ID ?: 'jenkins'}" \
+                                --label "build-number=${env.BUILD_NUMBER}" \
+                                --label "version=${params.VERSION}" \
+                                --label "git-branch=${env.CURRENT_BRANCH}" \
+                                --label "timestamp=\$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
                                 -f Dockerfile \
                                 --label "project=kelompok-tujuh" \
                                 --label "built-by=${env.BUILD_USER_ID ?: 'jenkins'}" \
@@ -268,7 +260,7 @@ pipeline {
                     ✅ DEPLOYMENT SUCCESSFUL
                     ═══════════════════════════════════════════
                     📦 Version: ${env.VERSION_DISPLAY}
-                    🌿 Branch: ${env.GIT_BRANCH}
+                    🌿 Branch: ${env.CURRENT_BRANCH}
                     🏗️  Build: #${env.BUILD_NUMBER}
                     🎯 Target: ${params.TARGET_HOST}
                     🌐 URL: http://project.tujuh
@@ -297,7 +289,7 @@ pipeline {
                     ✅ DRY RUN SUCCESSFUL
                     ═══════════════════════════════════════════
                     Image built successfully but not deployed
-                    Branch: ${env.GIT_BRANCH}
+                    Branch: ${env.CURRENT_BRANCH}
                     Version: ${env.VERSION_DISPLAY}
                     
                     To deploy, run again with DRY_RUN=false
@@ -307,7 +299,7 @@ pipeline {
                     echo """
                     ✅ DEPLOYMENT SUCCESSFUL
                     ═══════════════════════════════════════════
-                    Version ${params.VERSION} deployed from branch ${env.GIT_BRANCH}
+                    Version ${params.VERSION} deployed from branch ${env.CURRENT_BRANCH}
                     Access at: http://project.tujuh
                     ═══════════════════════════════════════════
                     """
@@ -327,8 +319,10 @@ pipeline {
             - Docker build errors
             - Source directory not found
             - Health check timeout
+            - Wrong branch configured in Jenkins
             
-            Branch: ${env.GIT_BRANCH}
+            Expected Branch: ${env.TARGET_BRANCH ?: 'N/A'}
+            Current Branch: ${env.CURRENT_BRANCH ?: 'N/A'}
             Version: ${params.VERSION}
             ═══════════════════════════════════════════
             """
