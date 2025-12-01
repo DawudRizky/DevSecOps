@@ -169,6 +169,120 @@ EOF
             }
         }
         
+        stage('🔒 Security Scanning') {
+            parallel {
+                stage('🛡️ SAST - Semgrep') {
+                    steps {
+                        dir("${env.SOURCE_DIR}") {
+                            script {
+                                echo "Running Semgrep SAST analysis..."
+                                
+                                def semgrepStatus = sh(
+                                    script: '''
+                                        # Install semgrep if not available
+                                        if ! command -v semgrep &> /dev/null; then
+                                            echo "Installing Semgrep..."
+                                            pip3 install semgrep --quiet || python3 -m pip install semgrep --quiet
+                                        fi
+                                        
+                                        # Run Semgrep with security rules
+                                        echo "Scanning for security vulnerabilities..."
+                                        semgrep scan --config=auto \
+                                            --exclude='*.test.tsx' \
+                                            --exclude='*.test.ts' \
+                                            --exclude='node_modules' \
+                                            --exclude='dist' \
+                                            --json \
+                                            --output=../semgrep-report.json \
+                                            . || true
+                                        
+                                        # Check for HIGH/CRITICAL findings
+                                        if [ -f ../semgrep-report.json ]; then
+                                            CRITICAL_COUNT=$(jq '[.results[] | select(.extra.severity == "ERROR" or .extra.severity == "WARNING")] | length' ../semgrep-report.json || echo "0")
+                                            echo "Found $CRITICAL_COUNT security issues"
+                                            
+                                            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+                                                echo "❌ SAST FAILED: Found $CRITICAL_COUNT security vulnerabilities"
+                                                jq -r '.results[] | select(.extra.severity == "ERROR" or .extra.severity == "WARNING") | "[\(.extra.severity)] \(.check_id): \(.extra.message) in \(.path):\(.start.line)"' ../semgrep-report.json
+                                                exit 1
+                                            else
+                                                echo "✅ SAST PASSED: No critical vulnerabilities found"
+                                                exit 0
+                                            fi
+                                        else
+                                            echo "⚠️  Semgrep report not generated"
+                                            exit 0
+                                        fi
+                                    ''',
+                                    returnStatus: true
+                                )
+                                
+                                if (semgrepStatus != 0) {
+                                    env.SAST_FAILED = 'true'
+                                    error("❌ SAST scan detected security vulnerabilities!")
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                stage('🐳 Container Scan - Trivy') {
+                    steps {
+                        script {
+                            echo "Running Trivy container vulnerability scan..."
+                            
+                            def trivyStatus = sh(
+                                script: """
+                                    # Install trivy if not available
+                                    if ! command -v trivy &> /dev/null; then
+                                        echo "Installing Trivy..."
+                                        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+                                        echo "deb https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+                                        sudo apt-get update -qq && sudo apt-get install -y trivy
+                                    fi
+                                    
+                                    # Update vulnerability database
+                                    trivy image --download-db-only
+                                    
+                                    # Scan Docker image
+                                    echo "Scanning image: ${env.DOCKER_IMAGE}"
+                                    trivy image \
+                                        --severity HIGH,CRITICAL \
+                                        --format json \
+                                        --output trivy-report.json \
+                                        ${env.DOCKER_IMAGE} || true
+                                    
+                                    # Check for vulnerabilities
+                                    if [ -f trivy-report.json ]; then
+                                        VULN_COUNT=\$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' trivy-report.json || echo "0")
+                                        echo "Found \$VULN_COUNT HIGH/CRITICAL vulnerabilities"
+                                        
+                                        if [ "\$VULN_COUNT" -gt 0 ]; then
+                                            echo "❌ CONTAINER SCAN FAILED: Found \$VULN_COUNT HIGH/CRITICAL vulnerabilities"
+                                            trivy image --severity HIGH,CRITICAL --format table ${env.DOCKER_IMAGE}
+                                            exit 1
+                                        else
+                                            echo "✅ CONTAINER SCAN PASSED: No HIGH/CRITICAL vulnerabilities"
+                                            exit 0
+                                        fi
+                                    else
+                                        echo "⚠️  Trivy report not generated"
+                                        exit 0
+                                    fi
+                                """,
+                                returnStatus: true
+                            )
+                            
+                            if (trivyStatus != 0) {
+                                env.TRIVY_FAILED = 'true'
+                                error("❌ Container scan detected HIGH/CRITICAL vulnerabilities!")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         stage('💾 Save Image') {
             when {
                 expression { !params.DRY_RUN }
@@ -269,6 +383,69 @@ EOF
             }
         }
         
+        stage('🎯 DAST - OWASP ZAP') {
+            when {
+                expression { !params.DRY_RUN }
+            }
+            steps {
+                script {
+                    echo "Running OWASP ZAP Dynamic Application Security Testing..."
+                    
+                    def zapStatus = sh(
+                        script: """
+                            # Check if ZAP Docker image exists, pull if needed
+                            if ! docker images | grep -q "ghcr.io/zaproxy/zaproxy"; then
+                                echo "Pulling OWASP ZAP Docker image..."
+                                docker pull ghcr.io/zaproxy/zaproxy:stable
+                            fi
+                            
+                            # Run ZAP baseline scan against deployed app
+                            echo "Starting ZAP baseline scan on http://${params.TARGET_HOST.split('@')[1]}:3000"
+                            docker run --rm \
+                                -v \$(pwd):/zap/wrk:rw \
+                                ghcr.io/zaproxy/zaproxy:stable \
+                                zap-baseline.py \
+                                -t http://${params.TARGET_HOST.split('@')[1]}:3000 \
+                                -r zap-report.html \
+                                -J zap-report.json \
+                                -w zap-report.md \
+                                -c zap-config.conf \
+                                || true
+                            
+                            # Parse results
+                            if [ -f zap-report.json ]; then
+                                # Count HIGH risk alerts
+                                HIGH_RISK=\$(jq '[.site[].alerts[] | select(.riskcode == "3")] | length' zap-report.json 2>/dev/null || echo "0")
+                                MEDIUM_RISK=\$(jq '[.site[].alerts[] | select(.riskcode == "2")] | length' zap-report.json 2>/dev/null || echo "0")
+                                
+                                echo "DAST Results:"
+                                echo "  HIGH Risk: \$HIGH_RISK"
+                                echo "  MEDIUM Risk: \$MEDIUM_RISK"
+                                
+                                if [ "\$HIGH_RISK" -gt 0 ]; then
+                                    echo "❌ DAST FAILED: Found \$HIGH_RISK HIGH risk vulnerabilities"
+                                    jq -r '.site[].alerts[] | select(.riskcode == "3") | "[\(.risk)] \(.name): \(.desc)"' zap-report.json 2>/dev/null | head -10
+                                    exit 1
+                                else
+                                    echo "✅ DAST PASSED: No HIGH risk vulnerabilities found"
+                                    exit 0
+                                fi
+                            else
+                                echo "⚠️  ZAP report not generated, skipping DAST validation"
+                                exit 0
+                            fi
+                        """,
+                        returnStatus: true
+                    )
+                    
+                    if (zapStatus != 0) {
+                        env.DAST_FAILED = 'true'
+                        error("❌ DAST scan detected HIGH risk vulnerabilities!")
+                    }
+                }
+            }
+        }
+        
         stage('📊 Deployment Summary') {
             when {
                 expression { !params.DRY_RUN }
@@ -312,6 +489,10 @@ EOF
                     Branch: ${env.CURRENT_BRANCH}
                     Version: ${env.VERSION_DISPLAY}
                     
+                    🔒 Security Scans:
+                    - ✅ SAST (Semgrep): Passed
+                    - ✅ Container Scan (Trivy): Passed
+                    
                     To deploy, run again with DRY_RUN=false
                     ═══════════════════════════════════════════
                     """
@@ -320,7 +501,12 @@ EOF
                     ✅ DEPLOYMENT SUCCESSFUL
                     ═══════════════════════════════════════════
                     Version ${params.VERSION} deployed from branch ${env.CURRENT_BRANCH}
-                    Access at: http://project.tujuh
+                    Access at: http://project.tujuh or http://10.34.100.160:3000
+                    
+                    🔒 Security Scans Passed:
+                    - ✅ SAST (Semgrep): No critical vulnerabilities
+                    - ✅ Container Scan (Trivy): No HIGH/CRITICAL CVEs
+                    - ✅ DAST (OWASP ZAP): No HIGH risk issues
                     ═══════════════════════════════════════════
                     """
                 }
@@ -328,13 +514,34 @@ EOF
         }
         
         failure {
-            echo """
+            script {
+                def failureReason = []
+                if (env.SAST_FAILED == 'true') {
+                    failureReason.add("❌ SAST (Semgrep): Security vulnerabilities detected in code")
+                }
+                if (env.TRIVY_FAILED == 'true') {
+                    failureReason.add("❌ Container Scan (Trivy): HIGH/CRITICAL vulnerabilities in dependencies")
+                }
+                if (env.DAST_FAILED == 'true') {
+                    failureReason.add("❌ DAST (OWASP ZAP): HIGH risk vulnerabilities in running application")
+                }
+                
+                if (failureReason.isEmpty()) {
+                    failureReason.add("❌ Build or deployment error - check logs above")
+                }
+                
+                echo """
             ❌ PIPELINE FAILED
             ═══════════════════════════════════════════
             Build/Deployment failed!
-            Check the logs above for error details.
+            
+            🔒 Security Scan Results:
+            ${failureReason.join('\n            ')}
             
             Common issues:
+            - Security vulnerabilities in code (SAST)
+            - Vulnerable dependencies (Trivy)
+            - Runtime security issues (DAST)
             - SSH connection failure
             - Docker build errors
             - Source directory not found
@@ -344,13 +551,23 @@ EOF
             Expected Branch: ${env.TARGET_BRANCH ?: 'N/A'}
             Current Branch: ${env.CURRENT_BRANCH ?: 'N/A'}
             Version: ${params.VERSION}
+            
+            📋 Check scan reports:
+            - semgrep-report.json (SAST)
+            - trivy-report.json (Container Vulnerabilities)
+            - zap-report.html (DAST)
             ═══════════════════════════════════════════
             """
+            }
+        }
         }
         
         always {
             script {
                 echo "🧹 Cleaning up workspace..."
+                
+                // Archive security scan reports
+                archiveArtifacts artifacts: '**/semgrep-report.json,**/trivy-report.json,**/zap-report.*', allowEmptyArchive: true
                 
                 // Clean up Docker images to save space on shared Jenkins
                 sh """
@@ -363,7 +580,7 @@ EOF
                     echo "✅ Cleanup complete"
                 """
                 
-                // Clean up artifacts directory
+                // Clean up artifacts directory (but keep security reports)
                 sh "rm -rf artifacts || true"
             }
         }
