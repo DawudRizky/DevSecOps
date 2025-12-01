@@ -30,6 +30,9 @@ pipeline {
         
         // SSH credentials ID (will be configured in Jenkins)
         SSH_CRED_ID = 'ssh-deploy-dso507'
+        
+        // Source directory is always 'webapp' now (branch determines content)
+        SOURCE_DIR = 'webapp'
     }
     
     options {
@@ -44,12 +47,17 @@ pipeline {
         stage('🔍 Pre-flight Check') {
             steps {
                 script {
+                    // Determine branch based on version
+                    env.GIT_BRANCH = params.VERSION == 'vulnerable' ? 'webapp-vulnerable' : 'main'
+                    env.VERSION_DISPLAY = params.VERSION == 'vulnerable' ? '🔴 VULNERABLE (Unsecure)' : '🟢 SECURE (Patched)'
+                    
                     echo """
                     ═══════════════════════════════════════════
                     🚀 Kelompok Tujuh - Webapp Deployment
                     ═══════════════════════════════════════════
                     👤 User: ${env.BUILD_USER_ID ?: 'System'}
-                    🏷️  Version: ${params.VERSION}
+                    🏷️  Version: ${env.VERSION_DISPLAY}
+                    🌿 Branch: ${env.GIT_BRANCH}
                     🎯 Target: ${params.TARGET_HOST}
                     🏗️  Build: #${env.BUILD_NUMBER}
                     📅 Time: ${new Date()}
@@ -63,39 +71,55 @@ pipeline {
         stage('📥 Checkout Source') {
             steps {
                 script {
-                    echo "Checking out from ${env.GIT_REPO}..."
+                    echo "Checking out branch: ${env.GIT_BRANCH} from ${env.GIT_REPO}"
+                    
                     checkout([
                         $class: 'GitSCM',
-                        branches: [[name: '*/main']],
-                        userRemoteConfigs: [[url: env.GIT_REPO]]
+                        branches: [[name: "*/${env.GIT_BRANCH}"]],
+                        userRemoteConfigs: [[url: env.GIT_REPO]],
+                        extensions: [[$class: 'CleanBeforeCheckout']]
                     ])
+                    
+                    // Display branch info
+                    sh """
+                        echo "📍 Current branch:"
+                        git branch -a | grep '\\*'
+                        echo ""
+                        echo "📝 Latest commit:"
+                        git log -1 --oneline
+                    """
                 }
             }
         }
         
-        stage('📂 Determine Source') {
+        stage('📂 Verify Source') {
             steps {
                 script {
-                    if (params.VERSION == 'vulnerable') {
-                        env.SOURCE_DIR = 'project-management'
-                        env.VERSION_DISPLAY = '🔴 VULNERABLE (Unsecure)'
-                    } else {
-                        env.SOURCE_DIR = 'project-management-secure'
-                        env.VERSION_DISPLAY = '🟢 SECURE (Patched)'
-                    }
-                    
                     echo """
                     📂 Source Directory: ${env.SOURCE_DIR}
                     📋 Version: ${env.VERSION_DISPLAY}
+                    🌿 Branch: ${env.GIT_BRANCH}
                     """
                     
                     // Verify source directory exists
                     sh """
                         if [ ! -d "${env.SOURCE_DIR}" ]; then
-                            echo "❌ ERROR: Source directory not found!"
+                            echo "❌ ERROR: Source directory '${env.SOURCE_DIR}' not found!"
+                            echo "Available directories:"
+                            ls -la
                             exit 1
                         fi
+                        
+                        echo "✅ Source directory found"
+                        echo "📦 Contents:"
                         ls -la ${env.SOURCE_DIR}/
+                        
+                        # Verify Dockerfile exists
+                        if [ ! -f "${env.SOURCE_DIR}/Dockerfile" ]; then
+                            echo "❌ ERROR: Dockerfile not found in ${env.SOURCE_DIR}/"
+                            exit 1
+                        fi
+                        echo "✅ Dockerfile found"
                     """
                 }
             }
@@ -106,6 +130,7 @@ pipeline {
                 dir("${env.SOURCE_DIR}") {
                     script {
                         echo "Building Docker image: ${env.DOCKER_IMAGE}"
+                        echo "From branch: ${env.GIT_BRANCH}"
                         
                         sh """
                             # Build with multi-stage Dockerfile
@@ -116,6 +141,7 @@ pipeline {
                                 --label "built-by=${env.BUILD_USER_ID ?: 'jenkins'}" \
                                 --label "build-number=${env.BUILD_NUMBER}" \
                                 --label "version=${params.VERSION}" \
+                                --label "git-branch=${env.GIT_BRANCH}" \
                                 --label "timestamp=\$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
                                 .
                             
@@ -242,10 +268,20 @@ pipeline {
                     ✅ DEPLOYMENT SUCCESSFUL
                     ═══════════════════════════════════════════
                     📦 Version: ${env.VERSION_DISPLAY}
+                    🌿 Branch: ${env.GIT_BRANCH}
                     🏗️  Build: #${env.BUILD_NUMBER}
                     🎯 Target: ${params.TARGET_HOST}
                     🌐 URL: http://project.tujuh
                     📅 Completed: ${new Date()}
+                    ═══════════════════════════════════════════
+                    
+                    🎯 Next Steps:
+                    - Access application at: http://project.tujuh
+                    - Verify version deployed correctly
+                    - Test application functionality
+                    
+                    🔄 To switch versions:
+                    - Run this pipeline again with different VERSION parameter
                     ═══════════════════════════════════════════
                     """
                 }
@@ -257,17 +293,44 @@ pipeline {
         success {
             script {
                 if (params.DRY_RUN) {
-                    echo "✅ Dry run completed successfully - Image built but not deployed"
+                    echo """
+                    ✅ DRY RUN SUCCESSFUL
+                    ═══════════════════════════════════════════
+                    Image built successfully but not deployed
+                    Branch: ${env.GIT_BRANCH}
+                    Version: ${env.VERSION_DISPLAY}
+                    
+                    To deploy, run again with DRY_RUN=false
+                    ═══════════════════════════════════════════
+                    """
                 } else {
-                    echo "✅ Deployment completed successfully!"
+                    echo """
+                    ✅ DEPLOYMENT SUCCESSFUL
+                    ═══════════════════════════════════════════
+                    Version ${params.VERSION} deployed from branch ${env.GIT_BRANCH}
+                    Access at: http://project.tujuh
+                    ═══════════════════════════════════════════
+                    """
                 }
             }
         }
         
         failure {
             echo """
-            ❌ Pipeline Failed!
+            ❌ PIPELINE FAILED
+            ═══════════════════════════════════════════
+            Build/Deployment failed!
             Check the logs above for error details.
+            
+            Common issues:
+            - SSH connection failure
+            - Docker build errors
+            - Source directory not found
+            - Health check timeout
+            
+            Branch: ${env.GIT_BRANCH}
+            Version: ${params.VERSION}
+            ═══════════════════════════════════════════
             """
         }
         
