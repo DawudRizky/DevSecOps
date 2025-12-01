@@ -4,28 +4,12 @@ services:
   # React/Vite Web Application
   webapp:
     build:
-      context: ./project-management
+      context: ./webapp
       dockerfile: Dockerfile
     container_name: vulnapp-webapp
     restart: unless-stopped
     ports:
       - "3000:80"
-    networks:
-      - vulnapp-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    environment:
-      - NODE_ENV=production
-
-  # Secure React/Vite Web Application
-  webapp-secure:
-    build:
-      context: ./project-management-secure
-      dockerfile: Dockerfile
-    container_name: vulnapp-webapp-secure
-    restart: unless-stopped
-    ports:
-      - "3001:80"
     networks:
       - vulnapp-network
     extra_hosts:
