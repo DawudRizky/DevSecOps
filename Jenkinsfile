@@ -371,7 +371,7 @@ EOF
                                 -o UserKnownHostsFile=/dev/null \
                                 ${params.TARGET_HOST} \
                                 "chmod +x /tmp/remote-deploy.sh && \
-                                 /tmp/remote-deploy.sh ${params.VERSION} ${env.IMAGE_TAR}"
+                                 /tmp/remote-deploy.sh ${params.VERSION} ${env.IMAGE_TAR} ${env.BUILD_NUMBER} ${env.CURRENT_BRANCH}"
                         """
                     }
                 }
