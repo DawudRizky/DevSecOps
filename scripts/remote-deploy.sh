@@ -137,12 +137,9 @@ print_success "Image tagged: ${IMAGE_TAG_VERSIONED}"
         print_warning "  VERSION=${VERSION}, BRANCH=${BRANCH_NAME}"
     fi
     
-    # Always tag with branch-latest for tracking
-    docker tag "$LOADED_IMAGE" "$IMAGE_TAG_BRANCH"
-    print_success "Image tagged: ${IMAGE_TAG_BRANCH}"
-else
-    print_warning "Could not find loaded image, assuming it's already tagged"
-fi
+# Always tag with branch-latest for tracking
+docker tag "$LOADED_IMAGE" "$IMAGE_TAG_BRANCH"
+print_success "Image tagged: ${IMAGE_TAG_BRANCH}"
 
 # Step 4: Verify network exists
 print_info "Checking Docker network..."
