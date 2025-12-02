@@ -6,6 +6,12 @@
 set -e  # Exit on any error
 set -u  # Exit on undefined variable
 
+# Parameters
+VERSION=${1:-secure}
+IMAGE_TAR=${2:-webapp-${VERSION}.tar.gz}
+BUILD_NUMBER=${3:-0}
+BRANCH_NAME=${4:-unknown}
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,12 +20,12 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-VERSION=${1:-secure}
-IMAGE_TAR=${2:-webapp-${VERSION}.tar.gz}
 IMAGE_FILE="/tmp/${IMAGE_TAR}"
 CONTAINER_NAME="vulnapp-webapp"
 NETWORK_NAME="vulnapp-network"
-IMAGE_TAG="webapp:${VERSION}"
+IMAGE_TAG_VERSIONED="webapp-${BRANCH_NAME}-${BUILD_NUMBER}:${VERSION}"
+IMAGE_TAG_LATEST="webapp:${VERSION}"
+IMAGE_TAG_BRANCH="webapp:${BRANCH_NAME}-latest"
 PROJECT_DIR="/home/dso507/kelompok-tujuh"
 
 # Function to print colored messages
@@ -82,11 +88,26 @@ else
 fi
 
 # Step 3: Tag the loaded image
-print_info "Tagging image as ${IMAGE_TAG}..."
+print_info "Tagging image with multiple tags..."
 LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "webapp-dso507" | head -1)
 if [ -n "$LOADED_IMAGE" ]; then
-    docker tag "$LOADED_IMAGE" "$IMAGE_TAG"
-    print_success "Image tagged: ${IMAGE_TAG}"
+    # Tag with build-specific version (never gets overwritten)
+    docker tag "$LOADED_IMAGE" "$IMAGE_TAG_VERSIONED"
+    print_success "Image tagged: ${IMAGE_TAG_VERSIONED}"
+    
+    # Only tag as 'webapp:secure' or 'webapp:vulnerable' if from the correct branch
+    if [[ ("$VERSION" == "secure" && "$BRANCH_NAME" == "main") || \
+          ("$VERSION" == "vulnerable" && "$BRANCH_NAME" == "webapp-vulnerable") ]]; then
+        docker tag "$LOADED_IMAGE" "$IMAGE_TAG_LATEST"
+        print_success "Image tagged: ${IMAGE_TAG_LATEST}"
+    else
+        print_warning "Skipping ${IMAGE_TAG_LATEST} tag - version/branch mismatch"
+        print_warning "  VERSION=${VERSION}, BRANCH=${BRANCH_NAME}"
+    fi
+    
+    # Always tag with branch-latest for tracking
+    docker tag "$LOADED_IMAGE" "$IMAGE_TAG_BRANCH"
+    print_success "Image tagged: ${IMAGE_TAG_BRANCH}"
 else
     print_warning "Could not find loaded image, assuming it's already tagged"
 fi
@@ -116,6 +137,9 @@ sleep 2
 
 # Step 6: Deploy new container
 print_info "Deploying new container..."
+DEPLOY_IMAGE="$IMAGE_TAG_VERSIONED"
+print_info "Using image: ${DEPLOY_IMAGE}"
+
 docker run -d \
     --name "$CONTAINER_NAME" \
     --network "$NETWORK_NAME" \
@@ -124,8 +148,10 @@ docker run -d \
     --add-host host.docker.internal:host-gateway \
     -e NODE_ENV=production \
     -e DEPLOYED_VERSION="${VERSION}" \
+    -e DEPLOYED_BRANCH="${BRANCH_NAME}" \
+    -e DEPLOYED_BUILD="${BUILD_NUMBER}" \
     -e DEPLOYED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    "$IMAGE_TAG"
+    "$DEPLOY_IMAGE"
 
 print_success "Container deployed: ${CONTAINER_NAME}"
 
@@ -159,7 +185,10 @@ done
 print_header "Deployment Summary"
 echo "✅ Status: SUCCESS"
 echo "📦 Version: $VERSION"
+echo "🌿 Branch: $BRANCH_NAME"
+echo "🏗️  Build: #$BUILD_NUMBER"
 echo "🐳 Container: $CONTAINER_NAME"
+echo "🖼️  Image: $IMAGE_TAG_VERSIONED"
 echo "🌐 Local URL: http://localhost:3000"
 echo "🌐 Public URL: http://project.tujuh"
 echo "📅 Deployed: $(date)"
