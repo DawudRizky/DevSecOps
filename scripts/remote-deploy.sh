@@ -78,7 +78,15 @@ fi
 IMAGE_SIZE=$(du -h "$IMAGE_FILE" | cut -f1)
 print_success "Image file found (${IMAGE_SIZE})"
 
-# Step 2: Load Docker image
+# Step 2: Remove old image if it exists to prevent conflicts
+print_info "Checking for existing image..."
+EXPECTED_IMAGE="webapp-dso507-${BUILD_NUMBER}:${VERSION}"
+if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${EXPECTED_IMAGE}$"; then
+    print_warning "Removing existing image: ${EXPECTED_IMAGE}"
+    docker rmi "${EXPECTED_IMAGE}" 2>/dev/null || true
+fi
+
+# Step 3: Load Docker image
 print_info "Loading Docker image..."
 LOAD_OUTPUT=$(gunzip -c "$IMAGE_FILE" | docker load 2>&1)
 if [ $? -eq 0 ]; then
@@ -90,15 +98,15 @@ else
     exit 1
 fi
 
-# Step 3: Tag the loaded image
+# Step 4: Tag the loaded image
 print_info "Tagging image with multiple tags..."
 # Extract the loaded image name from docker load output
 LOADED_IMAGE=$(echo "$LOAD_OUTPUT" | grep -oP 'Loaded image: \K.*' || echo "")
 
-# Fallback: if parsing failed, find the most recent webapp-dso507 image
+# Fallback: if parsing failed, use the expected image name (we just loaded it)
 if [ -z "$LOADED_IMAGE" ]; then
-    print_warning "Could not parse loaded image from output, searching for recent image..."
-    LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" webapp-dso507-${BUILD_NUMBER} | head -1)
+    print_warning "Could not parse loaded image from output, using expected image name..."
+    LOADED_IMAGE="${EXPECTED_IMAGE}"
 fi
 
 print_info "Loaded image: ${LOADED_IMAGE}"
@@ -141,7 +149,7 @@ print_success "Image tagged: ${IMAGE_TAG_VERSIONED}"
 docker tag "$LOADED_IMAGE" "$IMAGE_TAG_BRANCH"
 print_success "Image tagged: ${IMAGE_TAG_BRANCH}"
 
-# Step 4: Verify network exists
+# Step 5: Verify network exists
 print_info "Checking Docker network..."
 if docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
     print_success "Network exists: ${NETWORK_NAME}"
@@ -151,7 +159,7 @@ else
     print_success "Network created"
 fi
 
-# Step 5: Stop existing container
+# Step 6: Stop existing container
 print_info "Stopping existing container..."
 if docker ps -a --filter "name=${CONTAINER_NAME}" --format "{{.Names}}" | grep -q "${CONTAINER_NAME}"; then
     docker stop "$CONTAINER_NAME" 2>/dev/null || true
@@ -164,7 +172,7 @@ fi
 # Wait for cleanup
 sleep 2
 
-# Step 6: Deploy new container
+# Step 7: Deploy new container
 print_info "Deploying new container..."
 DEPLOY_IMAGE="$IMAGE_TAG_VERSIONED"
 print_info "Using image: ${DEPLOY_IMAGE}"
@@ -184,7 +192,7 @@ docker run -d \
 
 print_success "Container deployed: ${CONTAINER_NAME}"
 
-# Step 7: Health check
+# Step 8: Health check
 print_info "Running health checks..."
 sleep 3
 
@@ -210,7 +218,7 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     sleep 2
 done
 
-# Step 8: Display deployment info
+# Step 9: Display deployment info
 print_header "Deployment Summary"
 echo "✅ Status: SUCCESS"
 echo "📦 Version: $VERSION"
@@ -227,7 +235,7 @@ echo ""
 print_info "Container information:"
 docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
 
-# Step 9: Cleanup
+# Step 10: Cleanup
 print_info "Cleaning up temporary files..."
 rm -f "$IMAGE_FILE"
 rm -f "/tmp/remote-deploy.sh"
