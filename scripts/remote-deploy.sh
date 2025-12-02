@@ -78,13 +78,29 @@ fi
 IMAGE_SIZE=$(du -h "$IMAGE_FILE" | cut -f1)
 print_success "Image file found (${IMAGE_SIZE})"
 
-# Step 2: Remove old image if it exists to prevent conflicts
-print_info "Checking for existing image..."
+# Step 2: Aggressive cleanup of all old webapp images and cache
+print_info "Cleaning up old webapp images and cache..."
 EXPECTED_IMAGE="webapp-dso507-${BUILD_NUMBER}:${VERSION}"
-if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${EXPECTED_IMAGE}$"; then
-    print_warning "Removing existing image: ${EXPECTED_IMAGE}"
-    docker rmi "${EXPECTED_IMAGE}" 2>/dev/null || true
+
+# Stop and remove existing container if running
+if docker ps -q --filter "name=${CONTAINER_NAME}" | grep -q .; then
+    print_warning "Stopping existing container..."
+    docker stop "${CONTAINER_NAME}" 2>/dev/null || true
+    docker rm "${CONTAINER_NAME}" 2>/dev/null || true
 fi
+
+# Remove ALL old webapp images (keep only the one we're about to load)
+print_warning "Removing all old webapp images..."
+docker images --format "{{.Repository}}:{{.Tag}}" | grep "^webapp" | while read img; do
+    docker rmi "$img" 2>/dev/null || true
+done
+
+# Prune dangling images and build cache
+print_info "Pruning Docker cache..."
+docker image prune -f >/dev/null 2>&1 || true
+docker builder prune -f >/dev/null 2>&1 || true
+
+print_success "Cleanup complete"
 
 # Step 3: Load Docker image
 print_info "Loading Docker image..."
@@ -159,17 +175,8 @@ else
     print_success "Network created"
 fi
 
-# Step 6: Stop existing container
-print_info "Stopping existing container..."
-if docker ps -a --filter "name=${CONTAINER_NAME}" --format "{{.Names}}" | grep -q "${CONTAINER_NAME}"; then
-    docker stop "$CONTAINER_NAME" 2>/dev/null || true
-    docker rm "$CONTAINER_NAME" 2>/dev/null || true
-    print_success "Existing container removed"
-else
-    print_info "No existing container found"
-fi
-
-# Wait for cleanup
+# Step 6: Final preparation
+print_info "Preparing for deployment..."
 sleep 2
 
 # Step 7: Deploy new container
