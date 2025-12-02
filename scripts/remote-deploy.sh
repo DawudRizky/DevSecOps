@@ -80,20 +80,52 @@ print_success "Image file found (${IMAGE_SIZE})"
 
 # Step 2: Load Docker image
 print_info "Loading Docker image..."
-if gunzip -c "$IMAGE_FILE" | docker load; then
+LOAD_OUTPUT=$(gunzip -c "$IMAGE_FILE" | docker load 2>&1)
+if [ $? -eq 0 ]; then
     print_success "Docker image loaded successfully"
+    echo "$LOAD_OUTPUT"
 else
     print_error "Failed to load Docker image"
+    print_error "$LOAD_OUTPUT"
     exit 1
 fi
 
 # Step 3: Tag the loaded image
 print_info "Tagging image with multiple tags..."
-LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "webapp-dso507" | head -1)
-if [ -n "$LOADED_IMAGE" ]; then
-    # Tag with build-specific version (never gets overwritten)
-    docker tag "$LOADED_IMAGE" "$IMAGE_TAG_VERSIONED"
-    print_success "Image tagged: ${IMAGE_TAG_VERSIONED}"
+# Extract the loaded image name from docker load output
+LOADED_IMAGE=$(echo "$LOAD_OUTPUT" | grep -oP 'Loaded image: \K.*' || echo "")
+
+# Fallback: if parsing failed, find the most recent webapp-dso507 image
+if [ -z "$LOADED_IMAGE" ]; then
+    print_warning "Could not parse loaded image from output, searching for recent image..."
+    LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" webapp-dso507-${BUILD_NUMBER} | head -1)
+fi
+
+print_info "Loaded image: ${LOADED_IMAGE}"
+if [ -z "$LOADED_IMAGE" ]; then
+    print_error "Failed to identify loaded image"
+    print_error "Available webapp images:"
+    docker images | grep webapp
+    exit 1
+fi
+
+# Verify the loaded image has correct labels
+print_info "Verifying image labels..."
+IMAGE_BUILD=$(docker inspect "$LOADED_IMAGE" --format '{{index .Config.Labels "build-number"}}' 2>/dev/null || echo "unknown")
+IMAGE_BRANCH=$(docker inspect "$LOADED_IMAGE" --format '{{index .Config.Labels "git-branch"}}' 2>/dev/null || echo "unknown")
+print_info "Image build: ${IMAGE_BUILD}, branch: ${IMAGE_BRANCH}"
+
+if [ "$IMAGE_BUILD" != "$BUILD_NUMBER" ]; then
+    print_warning "WARNING: Loaded image build ($IMAGE_BUILD) doesn't match expected ($BUILD_NUMBER)"
+fi
+
+if [ "$IMAGE_BRANCH" != "$BRANCH_NAME" ]; then
+    print_warning "WARNING: Loaded image branch ($IMAGE_BRANCH) doesn't match expected ($BRANCH_NAME)"
+fi
+
+# Tag with build-specific version (never gets overwritten)
+docker tag "$LOADED_IMAGE" "$IMAGE_TAG_VERSIONED"
+print_success "Image tagged: ${IMAGE_TAG_VERSIONED}"
     
     # Only tag as 'webapp:secure' or 'webapp:vulnerable' if from the correct branch
     if [[ ("$VERSION" == "secure" && "$BRANCH_NAME" == "main") || \
